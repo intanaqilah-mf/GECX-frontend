@@ -1,9 +1,25 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../services/api_service.dart';
 
-class PaymentsScreen extends StatelessWidget {
-  const PaymentsScreen({super.key});
+class PaymentsScreen extends StatefulWidget {
+  final String customerId;
+  const PaymentsScreen({super.key, required this.customerId});
+
+  @override
+  State<PaymentsScreen> createState() => _PaymentsScreenState();
+}
+
+class _PaymentsScreenState extends State<PaymentsScreen> {
+  final ApiService _apiService = ApiService();
+  late Future<List<Map<String, dynamic>>> _paymentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _paymentsFuture = _apiService.getPayments(widget.customerId);
+  }
 
   static const _contacts = [
     ('Sarah J.', Color(0xFF6B9BD2)),
@@ -13,49 +29,50 @@ class PaymentsScreen extends StatelessWidget {
     ('Sophia M.', Color(0xFF8AAFD4)),
   ];
 
-  static const _scheduled = [
-    (Icons.electric_bolt, 'Metropolis Utilities', 'Due Oct 24, 2023', '-\$142.50', true),
-    (Icons.home_work_outlined, 'Riverside Rent', 'Due Nov 01, 2023', '-\$2,100.00', false),
-    (Icons.directions_car_outlined, 'Luxe Auto Finance', 'Due Nov 05, 2023', '-\$485.00', true),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          floating: true,
-          snap: true,
-          backgroundColor: AppColors.surface,
-          elevation: 0,
-          scrolledUnderElevation: 1,
-          automaticallyImplyLeading: false,
-          title: Text('Payments',
-              style: GoogleFonts.inter(
-                  fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.primary)),
-          actions: [
-            IconButton(
-                icon: const Icon(Icons.search, color: AppColors.onSurfaceVariant),
-                onPressed: () {}),
-            IconButton(
-                icon: const Icon(Icons.notifications_outlined,
-                    color: AppColors.onSurfaceVariant),
-                onPressed: () {}),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _paymentsFuture,
+      builder: (context, snapshot) {
+        final scheduled = snapshot.data ?? [];
+
+        return CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              snap: true,
+              backgroundColor: AppColors.surface,
+              elevation: 0,
+              scrolledUnderElevation: 1,
+              automaticallyImplyLeading: false,
+              title: Text('Payments',
+                  style: GoogleFonts.inter(
+                      fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.primary)),
+              actions: [
+                IconButton(
+                    icon: const Icon(Icons.search, color: AppColors.onSurfaceVariant),
+                    onPressed: () {}),
+                IconButton(
+                    icon: const Icon(Icons.notifications_outlined,
+                        color: AppColors.onSurfaceVariant),
+                    onPressed: () {}),
+              ],
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _buildQuickSend(),
+                  const SizedBox(height: 32),
+                  _buildMoveMoney(),
+                  const SizedBox(height: 32),
+                  _buildScheduled(context, scheduled),
+                ]),
+              ),
+            ),
           ],
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              _buildQuickSend(),
-              const SizedBox(height: 32),
-              _buildMoveMoney(),
-              const SizedBox(height: 32),
-              _buildScheduled(context),
-            ]),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -193,7 +210,7 @@ class PaymentsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildScheduled(BuildContext context) {
+  Widget _buildScheduled(BuildContext context, List<Map<String, dynamic>> scheduled) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -219,17 +236,30 @@ class PaymentsScreen extends StatelessWidget {
             border: Border.all(color: AppColors.outlineVariant),
           ),
           child: Column(
-            children: _scheduled.asMap().entries.map((entry) {
-              final i = entry.key;
-              final s = entry.value;
-              return Column(
-                children: [
-                  if (i > 0)
-                    const Divider(height: 1, color: AppColors.outlineVariant),
-                  _scheduledRow(s.$1, s.$2, s.$3, s.$4, s.$5),
-                ],
-              );
-            }).toList(),
+            children: scheduled.isEmpty
+                ? [
+                    const Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: Center(child: Text('No scheduled payments')),
+                    )
+                  ]
+                : scheduled.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final s = entry.value;
+                    return Column(
+                      children: [
+                        if (i > 0)
+                          const Divider(height: 1, color: AppColors.outlineVariant),
+                        _scheduledRow(
+                          Icons.payment,
+                          s['recipient_name'] ?? 'Recipient',
+                          'Due ${s['due_date'] ?? 'N/A'}',
+                          '-\$${s['amount'] ?? '0.00'}',
+                          s['is_autopay'] ?? false,
+                        ),
+                      ],
+                    );
+                  }).toList(),
           ),
         ),
         const SizedBox(height: 16),
@@ -302,4 +332,3 @@ class PaymentsScreen extends StatelessWidget {
     );
   }
 }
-

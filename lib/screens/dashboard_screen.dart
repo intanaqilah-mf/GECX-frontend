@@ -1,91 +1,141 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../models/banking_models.dart';
+import '../services/api_service.dart';
 import 'card_activation_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+class DashboardScreen extends StatefulWidget {
+  final String customerId;
+  const DashboardScreen({super.key, required this.customerId});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final ApiService _apiService = ApiService();
+  late Future<HomeData> _homeDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshData();
+  }
+
+  void _refreshData() {
+    setState(() {
+      _homeDataFuture = _apiService.getHomeData(widget.customerId);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          floating: true,
-          snap: true,
-          backgroundColor: AppColors.surface,
-          elevation: 0,
-          scrolledUnderElevation: 1,
-          automaticallyImplyLeading: false,
-          title: Row(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Hi, Alexander',
-                      style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: AppColors.onSurfaceVariant,
-                          fontWeight: FontWeight.w400)),
-                  Text('ACN Bank',
-                      style: GoogleFonts.inter(
-                          fontSize: 20,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.3)),
+    return FutureBuilder<HomeData>(
+      future: _homeDataFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Error: ${snapshot.error}'),
+                ElevatedButton(onPressed: _refreshData, child: const Text('Retry')),
+              ],
+            ),
+          );
+        } else if (!snapshot.hasData) {
+          return const Center(child: Text('No data found'));
+        }
+
+        final data = snapshot.data!;
+        return RefreshIndicator(
+          onRefresh: () async => _refreshData(),
+          child: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                floating: true,
+                snap: true,
+                backgroundColor: AppColors.surface,
+                elevation: 0,
+                scrolledUnderElevation: 1,
+                automaticallyImplyLeading: false,
+                title: Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Hi, ${data.customer.displayName}',
+                            style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppColors.onSurfaceVariant,
+                                fontWeight: FontWeight.w400)),
+                        Text('ACN Bank',
+                            style: GoogleFonts.inter(
+                                fontSize: 20,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.3)),
+                      ],
+                    ),
+                  ],
+                ),
+                actions: [
+                  Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_outlined,
+                            color: AppColors.onSurfaceVariant),
+                        onPressed: () {},
+                      ),
+                      if (data.summary['total_notifications'] > 0)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                                color: AppColors.error, shape: BoxShape.circle),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(right: 16),
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppColors.surfaceContainerHigh,
+                      child: Icon(Icons.person,
+                          color: AppColors.onSurfaceVariant, size: 20),
+                    ),
+                  ),
                 ],
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _buildBalanceCard(),
+                    const SizedBox(height: 12),
+                    _buildQuickActions(),
+                    const SizedBox(height: 24),
+                    if (data.summary['has_card_ready_for_activation'] == true)
+                      _buildActivationBanner(context, data.latestCard?.cardId),
+                    const SizedBox(height: 24),
+                    if (data.latestCard != null) _buildCardSection(data.latestCard!),
+                    const SizedBox(height: 24),
+                    _buildTransactions(),
+                  ]),
+                ),
               ),
             ],
           ),
-          actions: [
-            Stack(
-              alignment: Alignment.topRight,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined,
-                      color: AppColors.onSurfaceVariant),
-                  onPressed: () {},
-                ),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                        color: AppColors.error, shape: BoxShape.circle),
-                  ),
-                ),
-              ],
-            ),
-            const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.surfaceContainerHigh,
-                child: Icon(Icons.person,
-                    color: AppColors.onSurfaceVariant, size: 20),
-              ),
-            ),
-          ],
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              _buildBalanceCard(),
-              const SizedBox(height: 12),
-              _buildQuickActions(),
-              const SizedBox(height: 24),
-              _buildActivationBanner(context),
-              const SizedBox(height: 24),
-              _buildCardSection(),
-              const SizedBox(height: 24),
-              _buildTransactions(),
-            ]),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -217,10 +267,18 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActivationBanner(BuildContext context) {
+  Widget _buildActivationBanner(BuildContext context, String? cardId) {
     return GestureDetector(
-      onTap: () => Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const CardActivationScreen())),
+      onTap: () {
+        if (cardId != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CardActivationScreen(cardId: cardId),
+            ),
+          ).then((_) => _refreshData());
+        }
+      },
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -271,7 +329,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCardSection() {
+  Widget _buildCardSection(CardModel card) {
     return Column(
       children: [
         Row(
@@ -285,7 +343,7 @@ class DashboardScreen extends StatelessWidget {
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary)),
-                Text('Ready for use',
+                Text(card.status == 'active' ? 'Active and ready' : 'Pending Activation',
                     style: GoogleFonts.inter(
                         fontSize: 13, color: AppColors.onSurfaceVariant)),
               ],
@@ -349,11 +407,11 @@ class DashboardScreen extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Platinum Member',
+                          Text(card.cardType ?? 'Platinum Member',
                               style: GoogleFonts.inter(
                                   color: Colors.white54, fontSize: 10)),
                           const SizedBox(height: 4),
-                          Text('•••• •••• •••• 8842',
+                          Text(card.cardNumber ?? '•••• •••• •••• 8842',
                               style: GoogleFonts.robotoMono(
                                   color: Colors.white,
                                   fontSize: 15,
@@ -362,7 +420,7 @@ class DashboardScreen extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('ALEXANDER NEWMAN',
+                              Text(card.cardHolderName ?? 'ALEXANDER NEWMAN',
                                   style: GoogleFonts.inter(
                                       color: Colors.white,
                                       fontSize: 12,
@@ -373,7 +431,7 @@ class DashboardScreen extends StatelessWidget {
                                   Text('Exp',
                                       style: GoogleFonts.inter(
                                           color: Colors.white54, fontSize: 9)),
-                                  Text('08/28',
+                                  Text(card.expiryDate ?? '08/28',
                                       style: GoogleFonts.inter(
                                           color: Colors.white, fontSize: 12)),
                                 ],
@@ -396,7 +454,7 @@ class DashboardScreen extends StatelessWidget {
                         Text('Limit',
                             style: GoogleFonts.inter(
                                 fontSize: 12, color: AppColors.onSurfaceVariant)),
-                        Text('\$10,000.00',
+                        Text('\$${card.creditLimit}',
                             style: GoogleFonts.inter(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -569,4 +627,3 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 }
-

@@ -5,6 +5,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/payments_screen.dart';
 import 'screens/card_details_screen.dart';
 import 'screens/statements_screen.dart';
+import 'screens/login_screen.dart';
 
 void main() {
   runApp(const BankingApp());
@@ -58,13 +59,14 @@ class BankingApp extends StatelessWidget {
         dividerTheme: const DividerThemeData(
             color: AppColors.outlineVariant, thickness: 1),
       ),
-      home: const MainShell(),
+      home: const LoginScreen(),
     );
   }
 }
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  final String customerId;
+  const MainShell({super.key, required this.customerId});
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -78,11 +80,11 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const [
-          DashboardScreen(),
-          PaymentsScreen(),
-          CardDetailsScreen(),
-          StatementsScreen(),
+        children: [
+          DashboardScreen(customerId: widget.customerId),
+          PaymentsScreen(customerId: widget.customerId),
+          CardDetailsScreen(customerId: widget.customerId),
+          StatementsScreen(customerId: widget.customerId),
         ],
       ),
       bottomNavigationBar: NavigationBar(

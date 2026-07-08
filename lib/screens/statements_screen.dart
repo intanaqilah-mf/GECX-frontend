@@ -1,53 +1,75 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../services/api_service.dart';
+import '../models/banking_models.dart';
 
-class StatementsScreen extends StatelessWidget {
-  const StatementsScreen({super.key});
+class StatementsScreen extends StatefulWidget {
+  final String customerId;
+  const StatementsScreen({super.key, required this.customerId});
 
-  static const _months = [
-    ('October 2023', 'Available Oct 1, 2023'),
-    ('September 2023', 'Available Sept 1, 2023'),
-    ('August 2023', 'Available Aug 1, 2023'),
-    ('July 2023', 'Available July 1, 2023'),
-  ];
+  @override
+  State<StatementsScreen> createState() => _StatementsScreenState();
+}
+
+class _StatementsScreenState extends State<StatementsScreen> {
+  final ApiService _apiService = ApiService();
+  late Future<HomeData> _homeDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _homeDataFuture = _apiService.getHomeData(widget.customerId);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          floating: true,
-          snap: true,
-          backgroundColor: AppColors.surface,
-          elevation: 0,
-          scrolledUnderElevation: 1,
-          automaticallyImplyLeading: false,
-          title: Text('Statements',
-              style: GoogleFonts.inter(
-                  fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.primary)),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
-              onPressed: () {},
+    return FutureBuilder<HomeData>(
+      future: _homeDataFuture,
+      builder: (context, snapshot) {
+        final cardId = snapshot.data?.latestCard?.cardId;
+
+        return CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              snap: true,
+              backgroundColor: AppColors.surface,
+              elevation: 0,
+              scrolledUnderElevation: 1,
+              automaticallyImplyLeading: false,
+              title: Text('Statements',
+                  style: GoogleFonts.inter(
+                      fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.primary)),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
+                  onPressed: () {},
+                ),
+              ],
             ),
+            if (cardId == null)
+              const SliverFillRemaining(
+                child: Center(child: Text('No active card for statements')),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _buildCurrentStatement(),
+                    const SizedBox(height: 24),
+                    _buildHistory(cardId),
+                    const SizedBox(height: 24),
+                    _buildInquiries(context),
+                    const SizedBox(height: 24),
+                    _buildGreenBanner(),
+                  ]),
+                ),
+              ),
           ],
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              _buildCurrentStatement(),
-              const SizedBox(height: 24),
-              _buildHistory(),
-              const SizedBox(height: 24),
-              _buildInquiries(context),
-              const SizedBox(height: 24),
-              _buildGreenBanner(),
-            ]),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -142,88 +164,100 @@ class StatementsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHistory() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildHistory(String cardId) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _apiService.getStatements(cardId),
+      builder: (context, snapshot) {
+        final statements = snapshot.data ?? [];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Statement History',
-                style: GoogleFonts.inter(
-                    fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.onSurface)),
-            TextButton(
-              onPressed: () {},
-              child: Text('Filter',
-                  style: GoogleFonts.inter(
-                      color: AppColors.secondary, fontWeight: FontWeight.w600)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Statement History',
+                    style: GoogleFonts.inter(
+                        fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.onSurface)),
+                TextButton(
+                  onPressed: () {},
+                  child: Text('Filter',
+                      style: GoogleFonts.inter(
+                          color: AppColors.secondary, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.outlineVariant),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Material(
+                color: AppColors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: statements.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Center(child: Text('No statements available')),
+                      )
+                    : Column(
+                        children: statements.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final m = entry.value;
+                          return Column(
+                            children: [
+                              if (i > 0) const Divider(height: 1, color: AppColors.outlineVariant),
+                              ListTile(
+                                leading: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceContainerHigh,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.description_outlined,
+                                      color: AppColors.primary),
+                                ),
+                                title: Text(m['month'] ?? 'Unknown Month',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.onSurface)),
+                                subtitle: Text('Available ${m['available_date'] ?? 'N/A'}',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 12, color: AppColors.onSurfaceVariant)),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.download_outlined,
+                                      color: AppColors.onSurfaceVariant),
+                                  onPressed: () {},
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () {},
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.secondary,
+                  side: const BorderSide(color: AppColors.outlineVariant),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text('View Older Statements',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              ),
             ),
           ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColors.outlineVariant),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Material(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(12),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: _months.asMap().entries.map((entry) {
-                final i = entry.key;
-                final m = entry.value;
-                return Column(
-                  children: [
-                    if (i > 0) const Divider(height: 1, color: AppColors.outlineVariant),
-                    ListTile(
-                      leading: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.description_outlined,
-                            color: AppColors.primary),
-                      ),
-                      title: Text(m.$1,
-                          style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.onSurface)),
-                      subtitle: Text(m.$2,
-                          style: GoogleFonts.inter(
-                              fontSize: 12, color: AppColors.onSurfaceVariant)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.download_outlined,
-                            color: AppColors.onSurfaceVariant),
-                        onPressed: () {},
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.secondary,
-              side: const BorderSide(color: AppColors.outlineVariant),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: Text('View Older Statements',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -413,4 +447,3 @@ class StatementsScreen extends StatelessWidget {
     );
   }
 }
-

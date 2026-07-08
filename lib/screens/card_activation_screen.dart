@@ -1,26 +1,44 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../services/api_service.dart';
 import 'activation_success_screen.dart';
 
 class CardActivationScreen extends StatefulWidget {
-  const CardActivationScreen({super.key});
+  final String cardId;
+  const CardActivationScreen({super.key, required this.cardId});
 
   @override
   State<CardActivationScreen> createState() => _CardActivationScreenState();
 }
 
 class _CardActivationScreenState extends State<CardActivationScreen> {
+  final ApiService _apiService = ApiService();
   bool _activating = false;
 
   Future<void> _handleActivate() async {
     setState(() => _activating = true);
-    await Future.delayed(const Duration(milliseconds: 1800));
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const ActivationSuccessScreen()),
-    );
+    try {
+      final result = await _apiService.activateCard(widget.cardId);
+      if (!mounted) return;
+      if (result['success'] == true) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const ActivationSuccessScreen()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Activation failed')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _activating = false);
+    }
   }
 
   @override
@@ -32,18 +50,12 @@ class _CardActivationScreenState extends State<CardActivationScreen> {
         elevation: 0,
         scrolledUnderElevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: AppColors.primary),
-          onPressed: () {},
+          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          onPressed: () => Navigator.pop(context),
         ),
         title: Text('ACN Bank',
             style: GoogleFonts.inter(
                 fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primary)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -56,7 +68,7 @@ class _CardActivationScreenState extends State<CardActivationScreen> {
                 _buildCardHero(),
                 const SizedBox(height: 28),
                 Text(
-                  'Welcome, Alexander.\nLet\'s activate your card.',
+                  'Welcome!\nLet\'s activate your card.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
                       fontSize: 24,
@@ -125,7 +137,7 @@ class _CardActivationScreenState extends State<CardActivationScreen> {
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text('Activate Card',
+                                Text('Activate Card Now',
                                     style: GoogleFonts.inter(
                                         fontWeight: FontWeight.w600, fontSize: 15)),
                                 const SizedBox(width: 8),
@@ -292,7 +304,7 @@ class _CardActivationScreenState extends State<CardActivationScreen> {
                                         color: Colors.white38,
                                         fontSize: 8,
                                         letterSpacing: 0.5)),
-                                Text('ALEXANDER NEWMAN',
+                                Text('CARD HOLDER',
                                     style: GoogleFonts.inter(
                                         color: Colors.white,
                                         fontSize: 11,
@@ -355,4 +367,3 @@ class _CardActivationScreenState extends State<CardActivationScreen> {
     );
   }
 }
-

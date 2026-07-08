@@ -110,6 +110,12 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "intl",
+      "rootUri": "file:///C:/Users/intan.n.mohd.faddil/AppData/Local/Pub/Cache/hosted/pub.dev/intl-0.19.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "jni",
       "rootUri": "file:///C:/Users/intan.n.mohd.faddil/AppData/Local/Pub/Cache/hosted/pub.dev/jni-1.0.0",
       "packageUri": "lib/",

@@ -2,60 +2,87 @@
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../models/banking_models.dart';
+import '../services/api_service.dart';
 
 class CardDetailsScreen extends StatefulWidget {
-  const CardDetailsScreen({super.key});
+  final String customerId;
+  const CardDetailsScreen({super.key, required this.customerId});
 
   @override
   State<CardDetailsScreen> createState() => _CardDetailsScreenState();
 }
 
 class _CardDetailsScreenState extends State<CardDetailsScreen> {
+  final ApiService _apiService = ApiService();
+  late Future<HomeData> _homeDataFuture;
   bool _cvvVisible = false;
   bool _cardFrozen = false;
 
   @override
+  void initState() {
+    super.initState();
+    _homeDataFuture = _apiService.getHomeData(widget.customerId);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          floating: true,
-          snap: true,
-          backgroundColor: AppColors.surface,
-          elevation: 0,
-          scrolledUnderElevation: 1,
-          automaticallyImplyLeading: false,
-          title: Text('Card Details',
-              style: GoogleFonts.inter(
-                  fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.primary)),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
-              onPressed: () {},
+    return FutureBuilder<HomeData>(
+      future: _homeDataFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        final card = snapshot.data?.latestCard;
+
+        return CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              snap: true,
+              backgroundColor: AppColors.surface,
+              elevation: 0,
+              scrolledUnderElevation: 1,
+              automaticallyImplyLeading: false,
+              title: Text('Card Details',
+                  style: GoogleFonts.inter(
+                      fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.primary)),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
+                  onPressed: () {},
+                ),
+              ],
             ),
+            if (card == null)
+              const SliverFillRemaining(
+                child: Center(child: Text('No active card found')),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _buildCardVisual(card),
+                    const SizedBox(height: 16),
+                    _buildInfoCards(card),
+                    const SizedBox(height: 16),
+                    _buildQuickActions(),
+                    const SizedBox(height: 24),
+                    _buildTransactions(card.cardId),
+                    const SizedBox(height: 24),
+                    _buildReportButton(),
+                  ]),
+                ),
+              ),
           ],
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              _buildCardVisual(),
-              const SizedBox(height: 16),
-              _buildInfoCards(),
-              const SizedBox(height: 16),
-              _buildQuickActions(),
-              const SizedBox(height: 24),
-              _buildTransactions(),
-              const SizedBox(height: 24),
-              _buildReportButton(),
-            ]),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildCardVisual() {
+  Widget _buildCardVisual(CardModel card) {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
@@ -83,14 +110,14 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Premier Credit',
+                        Text(card.cardType ?? 'Premier Credit',
                             style: GoogleFonts.inter(
                                 fontSize: 10,
                                 color: Colors.white60,
                                 letterSpacing: 1.5,
                                 fontWeight: FontWeight.w500)),
-                        Text('ACN Bank',
-                            style: GoogleFonts.inter(
+                        const Text('ACN Bank',
+                            style: TextStyle(
                                 fontSize: 18,
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700)),
@@ -115,7 +142,7 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text('•••• •••• •••• 8842',
+                        Text(card.cardNumber ?? '•••• •••• •••• 8842',
                             style: GoogleFonts.robotoMono(
                                 color: Colors.white, fontSize: 15, letterSpacing: 2)),
                       ],
@@ -129,7 +156,7 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
                             Text('EXPIRY',
                                 style: GoogleFonts.inter(
                                     fontSize: 8, color: Colors.white38)),
-                            Text('11/28',
+                            Text(card.expiryDate ?? '11/28',
                                 style: GoogleFonts.inter(
                                     fontSize: 13,
                                     color: Colors.white,
@@ -173,7 +200,7 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Alexander Newman',
+                    Text(card.cardHolderName ?? 'Alexander Newman',
                         style: GoogleFonts.inter(
                             fontSize: 12,
                             color: Colors.white,
@@ -207,7 +234,7 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
     );
   }
 
-  Widget _buildInfoCards() {
+  Widget _buildInfoCards(CardModel card) {
     return Row(
       children: [
         Expanded(
@@ -229,7 +256,7 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
                           style: GoogleFonts.inter(
                               fontSize: 11, color: AppColors.onSurfaceVariant)),
                       const SizedBox(height: 4),
-                      Text('4532 8812 0943 8842',
+                      Text(card.cardNumber ?? '4532 8812 0943 8842',
                           style: GoogleFonts.inter(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -242,7 +269,7 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
                       color: AppColors.secondary, size: 20),
                   onPressed: () {
                     Clipboard.setData(
-                        const ClipboardData(text: '4532881209438842'));
+                        ClipboardData(text: card.cardNumber?.replaceAll(' ', '') ?? ''));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Card number copied')));
                   },
@@ -359,45 +386,63 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
     );
   }
 
-  Widget _buildTransactions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildTransactions(String cardId) {
+    return FutureBuilder<List<ActivityModel>>(
+      future: _apiService.getCardActivity(cardId),
+      builder: (context, snapshot) {
+        final activities = snapshot.data ?? [];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Recent Activity',
-                style: GoogleFonts.inter(
-                    fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primary)),
-            TextButton(
-              onPressed: () {},
-              child: Text('View All',
-                  style: GoogleFonts.inter(
-                      color: AppColors.secondary, fontWeight: FontWeight.w600)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Recent Activity',
+                    style: GoogleFonts.inter(
+                        fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                TextButton(
+                  onPressed: () {},
+                  child: Text('View All',
+                      style: GoogleFonts.inter(
+                          color: AppColors.secondary, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.outlineVariant),
+              ),
+              child: activities.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: Center(child: Text('No recent activity')),
+                    )
+                  : Column(
+                      children: activities.asMap().entries.map((entry) {
+                        final i = entry.key;
+                        final a = entry.value;
+                        return Column(
+                          children: [
+                            if (i > 0) const Divider(height: 1, color: AppColors.outlineVariant),
+                            _txRow(
+                              a.category == 'Shopping' ? Icons.shopping_bag_outlined : 
+                              a.category == 'Dining' ? Icons.restaurant_outlined : Icons.local_taxi_outlined,
+                              a.title,
+                              a.date,
+                              '-\$${a.amount.toStringAsFixed(2)}',
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
             ),
           ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          child: Column(
-            children: [
-              _txRow(Icons.shopping_bag_outlined, 'Apple Store Soho',
-                  'Today, 2:45 PM', '-\$1,299.00'),
-              const Divider(height: 1, color: AppColors.outlineVariant),
-              _txRow(Icons.restaurant_outlined, 'The Grill House',
-                  'Yesterday, 8:12 PM', '-\$84.50'),
-              const Divider(height: 1, color: AppColors.outlineVariant),
-              _txRow(Icons.local_taxi_outlined, 'Uber Trip',
-                  'Yesterday, 6:00 PM', '-\$18.22'),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -455,4 +500,3 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
     );
   }
 }
-
