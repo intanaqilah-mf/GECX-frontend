@@ -1,0 +1,25 @@
+About project:
+ 
+We now have pretty much all the conversational paths implemented in the ACN Bank Demo agent. The idea is for this to be the agent we use during demos
+ 
+The main paths we currently have are:
+Credit card applications for existing bank customers
+Daily banking, which covers checking account balances, payments, billing-related inquiries, and similar banking tasks
+In two weeks, we have a demo with MD's from Canada to showcase the work we've done so far. One of the biggest enhancements we want to introduce to the conversational experience is a real ACN Bank mobile app (something that can actually be downloaded)
+ 
+The goal is to demonstrate GECX's omnichannel capabilities - showing that what happens in the webchat is also reflected across other touchpoints, such as the mobile app
+ 
+With that in mind, here are the next steps:
+Keep our current use case where users can apply for a credit card through the chatbot
+Once the credit card application is approved, send the user a link, push notification, or similar prompt directing them to the ACN Bank app so they can immediately start using their new card
+We can do something similar for the daily banking use cases as well, although the primary focus is the credit card application journey
+So, what we still need today is:
+Develop a web/mobile app to showcase these integrations
+Figure out how the chat or push notification flow should work so users can transition to the app and start using the card they just applied for (I'll be exploring this today)
+Debug the existing use cases (I'm also reviewing these today, but the complexity is lower)
+My question is: do you have experience developing mobile apps? We don't need anything overly sophisticated, but it definitely needs to look polished and, most importantly, be fully functional. Once we have that in place and both components are communicating with each other, I think we'll have a really strong demo.
+I finished the backend foundation for the omnichannel flow, so we now have a shared backend that the mobile app can consume instead of having everything live inside the chatbot
+
+I just put together a short Word doc with the API and the overall flow. If you're OK with this approach, we can keep moving in this direction and finish some things on the backend and then a future App ACN_Bank_Customer_Platform_API.docx
+
+baackend repo: https://github.com/embadillo/app-backend
