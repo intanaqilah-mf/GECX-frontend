@@ -2,6 +2,7 @@
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../services/api_service.dart';
+import '../models/banking_models.dart';
 
 class PaymentsScreen extends StatefulWidget {
   final String customerId;
@@ -14,11 +15,13 @@ class PaymentsScreen extends StatefulWidget {
 class _PaymentsScreenState extends State<PaymentsScreen> {
   final ApiService _apiService = ApiService();
   late Future<List<Map<String, dynamic>>> _paymentsFuture;
+  late Future<HomeData> _homeDataFuture;
 
   @override
   void initState() {
     super.initState();
     _paymentsFuture = _apiService.getPayments(widget.customerId);
+    _homeDataFuture = _apiService.getHomeData(widget.customerId);
   }
 
   static const _contacts = [
@@ -31,10 +34,16 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _paymentsFuture,
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([_paymentsFuture, _homeDataFuture]),
       builder: (context, snapshot) {
-        final scheduled = snapshot.data ?? [];
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        
+        final scheduled = (snapshot.data?[0] as List<Map<String, dynamic>>?) ?? [];
+        final homeData = snapshot.data?[1] as HomeData?;
+        final cardId = homeData?.latestCard?.cardId;
 
         return CustomScrollView(
           slivers: [
@@ -62,12 +71,206 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  _buildCurrentStatement(),
+                  const SizedBox(height: 24),
                   _buildQuickSend(),
                   const SizedBox(height: 32),
                   _buildMoveMoney(),
                   const SizedBox(height: 32),
                   _buildScheduled(context, scheduled),
+                  if (cardId != null) ...[
+                    const SizedBox(height: 32),
+                    _buildHistory(cardId),
+                  ],
                 ]),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCurrentStatement() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 16,
+              offset: const Offset(0, 4))
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('CURRENT AMOUNT DUE',
+              style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8)),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text('\$1,452.80',
+                  style: GoogleFonts.inter(
+                      fontSize: 28, color: Colors.white, fontWeight: FontWeight.w700)),
+              const SizedBox(width: 6),
+              Text('USD',
+                  style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(color: Colors.white12),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Due Date',
+                        style: GoogleFonts.inter(
+                            fontSize: 11, color: Colors.white54)),
+                    const SizedBox(height: 4),
+                    Text('Oct 28, 2023',
+                        style: GoogleFonts.inter(
+                            fontSize: 17, color: Colors.white, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Minimum Payment',
+                        style: GoogleFonts.inter(
+                            fontSize: 11, color: Colors.white54)),
+                    const SizedBox(height: 4),
+                    Text('\$75.00',
+                        style: GoogleFonts.inter(
+                            fontSize: 17, color: Colors.white, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.payments_outlined, size: 18),
+              label: Text('Make a Payment',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistory(String cardId) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _apiService.getStatements(cardId),
+      builder: (context, snapshot) {
+        final statements = snapshot.data ?? [];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Statement History',
+                    style: GoogleFonts.inter(
+                        fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.onSurface)),
+                TextButton(
+                  onPressed: () {},
+                  child: Text('Filter',
+                      style: GoogleFonts.inter(
+                          color: AppColors.secondary, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.outlineVariant),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Material(
+                color: AppColors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: statements.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Center(child: Text('No statements available')),
+                      )
+                    : Column(
+                        children: statements.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final m = entry.value;
+                          return Column(
+                            children: [
+                              if (i > 0) const Divider(height: 1, color: AppColors.outlineVariant),
+                              ListTile(
+                                leading: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceContainerHigh,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.description_outlined,
+                                      color: AppColors.primary),
+                                ),
+                                title: Text(m['month'] ?? 'Unknown Month',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.onSurface)),
+                                subtitle: Text('Available ${m['available_date'] ?? 'N/A'}',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 12, color: AppColors.onSurfaceVariant)),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.download_outlined,
+                                      color: AppColors.onSurfaceVariant),
+                                  onPressed: () {},
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () {},
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.secondary,
+                  side: const BorderSide(color: AppColors.outlineVariant),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text('View Older Statements',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               ),
             ),
           ],
