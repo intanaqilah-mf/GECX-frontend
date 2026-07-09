@@ -90,7 +90,15 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
           aspectRatio: 1.58,
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary,
+                  AppColors.primary.withValues(alpha: 0.8),
+                  const Color(0xFF001b3d),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -110,7 +118,7 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(card.cardType ?? 'Premier Credit',
+                        Text(card.cardType ?? 'Visa Platinum',
                             style: GoogleFonts.inter(
                                 fontSize: 10,
                                 color: Colors.white60,
@@ -129,24 +137,9 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 42,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFFD700), Color(0xFFB8860B)],
-                            ),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(card.cardNumber ?? '•••• •••• •••• 8842',
-                            style: GoogleFonts.robotoMono(
-                                color: Colors.white, fontSize: 15, letterSpacing: 2)),
-                      ],
-                    ),
+                    Text(card.cardNumber ?? '•••• •••• •••• 8842',
+                        style: GoogleFonts.robotoMono(
+                            color: Colors.white, fontSize: 18, letterSpacing: 2)),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -172,7 +165,7 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
                                     fontSize: 8, color: Colors.white38)),
                             Row(
                               children: [
-                                Text(_cvvVisible ? '412' : '•••',
+                                Text(_cvvVisible ? (card.cvv == '•••' ? '412' : card.cvv) : '•••',
                                     style: GoogleFonts.inter(
                                         fontSize: 13,
                                         color: Colors.white,
@@ -200,30 +193,18 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(card.cardHolderName ?? 'Alexander Newman',
+                    Text(card.cardHolderName ?? 'ALEXANDER NEWMAN',
                         style: GoogleFonts.inter(
                             fontSize: 12,
                             color: Colors.white,
                             fontWeight: FontWeight.w600)),
-                    Row(
-                      children: [
-                        Container(
-                          width: 26,
-                          height: 26,
-                          decoration: const BoxDecoration(
-                              color: Color(0xCCCC0000), shape: BoxShape.circle),
-                        ),
-                        Transform.translate(
-                          offset: const Offset(-8, 0),
-                          child: Container(
-                            width: 26,
-                            height: 26,
-                            decoration: const BoxDecoration(
-                                color: Color(0xCCFFAA00), shape: BoxShape.circle),
-                          ),
-                        ),
-                      ],
-                    ),
+                    Text('VISA',
+                        style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontStyle: FontStyle.italic,
+                            fontSize: 18,
+                            letterSpacing: 2)),
                   ],
                 ),
               ],
@@ -235,83 +216,114 @@ class _CardDetailsScreenState extends State<CardDetailsScreen> {
   }
 
   Widget _buildInfoCards(CardModel card) {
-    return Row(
+    double progress = (card.spendingLimit > 0) ? (card.spentAmount / card.spendingLimit) : 0.0;
+    
+    return Column(
       children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.outlineVariant),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Virtual Card Number',
-                          style: GoogleFonts.inter(
-                              fontSize: 11, color: AppColors.onSurfaceVariant)),
-                      const SizedBox(height: 4),
-                      Text(card.cardNumber ?? '4532 8812 0943 8842',
-                          style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary)),
-                    ],
-                  ),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Spending Limit',
+                      style: GoogleFonts.inter(
+                          fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                  Text('\$${card.spentAmount.toStringAsFixed(0)} / \$${card.spendingLimit.toStringAsFixed(0)}',
+                      style: GoogleFonts.inter(
+                          fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: AppColors.surfaceContainerHigh,
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.secondary),
+                  minHeight: 10,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.copy_outlined,
-                      color: AppColors.secondary, size: 20),
-                  onPressed: () {
-                    Clipboard.setData(
-                        ClipboardData(text: card.cardNumber?.replaceAll(' ', '') ?? ''));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Card number copied')));
-                  },
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _infoBit('Remaining', '\$${(card.spendingLimit - card.spentAmount).toStringAsFixed(0)}'),
+                  _infoBit('Next Billing', card.statementBillDate ?? 'Nov 24'),
+                  _infoBit('Last Bill', '\$${card.lastStatementBalance.toStringAsFixed(2)}'),
+                ],
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.outlineVariant),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Billing Address',
-                          style: GoogleFonts.inter(
-                              fontSize: 11, color: AppColors.onSurfaceVariant)),
-                      const SizedBox(height: 4),
-                      Text('128 Financial Plaza, NY',
-                          style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary)),
-                    ],
-                  ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.outlineVariant),
                 ),
-                const Icon(Icons.location_on_outlined,
-                    color: AppColors.outline, size: 20),
-              ],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Virtual Card Number',
+                              style: GoogleFonts.inter(
+                                  fontSize: 11, color: AppColors.onSurfaceVariant)),
+                          const SizedBox(height: 4),
+                          Text(card.cardNumber ?? '4532 8812 0943 8842',
+                              style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_outlined,
+                          color: AppColors.secondary, size: 20),
+                      onPressed: () {
+                        Clipboard.setData(
+                            ClipboardData(text: card.cardNumber?.replaceAll(' ', '') ?? ''));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Card number copied')));
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
+          ],
         ),
+      ],
+    );
+  }
+
+  Widget _infoBit(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: GoogleFonts.inter(
+                fontSize: 10, color: AppColors.onSurfaceVariant, letterSpacing: 0.5)),
+        const SizedBox(height: 2),
+        Text(value,
+            style: GoogleFonts.inter(
+                fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
       ],
     );
   }

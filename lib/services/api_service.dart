@@ -2,10 +2,23 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/banking_models.dart';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
+
 class ApiService {
-  // Use 10.0.2.2 for Android Emulator, localhost for iOS/Web/Desktop
-  // Change to your actual backend URL if deployed
-  static const String baseUrl = 'http://localhost:8000'; 
+  // Automatically select the correct URL based on the platform
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://localhost:8000';
+    } else {
+      try {
+        if (Platform.isAndroid) return 'http://10.0.2.2:8000';
+      } catch (e) {
+        // Fallback for other platforms
+      }
+      return 'http://localhost:8000';
+    }
+  }
 
   Future<HomeData> getHomeData(String customerId) async {
     final response = await http.get(Uri.parse('$baseUrl/customers/$customerId/home'));

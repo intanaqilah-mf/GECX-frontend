@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../models/banking_models.dart';
 import '../services/api_service.dart';
 import 'card_activation_screen.dart';
+import '../main.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String customerId;
@@ -349,7 +350,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () => MainShell.of(context)?.setIndex(2),
               child: Text('View Details',
                   style: GoogleFonts.inter(
                       color: AppColors.secondary, fontWeight: FontWeight.w600)),
@@ -454,7 +455,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Text('Limit',
                             style: GoogleFonts.inter(
                                 fontSize: 12, color: AppColors.onSurfaceVariant)),
-                        Text('\$${card.creditLimit}',
+                        Text('\$${card.spendingLimit.toStringAsFixed(0)}',
                             style: GoogleFonts.inter(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -466,10 +467,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Balance',
+                        Text('Spent',
                             style: GoogleFonts.inter(
                                 fontSize: 12, color: AppColors.onSurfaceVariant)),
-                        Text('\$0.00',
+                        Text('\$${card.spentAmount.toStringAsFixed(2)}',
                             style: GoogleFonts.inter(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -482,11 +483,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 8),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: const LinearProgressIndicator(
-                  value: 0.02,
+                child: LinearProgressIndicator(
+                  value: (card.spendingLimit > 0) ? (card.spentAmount / card.spendingLimit) : 0.0,
                   backgroundColor: AppColors.surfaceContainerHigh,
                   valueColor:
-                      AlwaysStoppedAnimation<Color>(AppColors.secondary),
+                      const AlwaysStoppedAnimation<Color>(AppColors.secondary),
                   minHeight: 6,
                 ),
               ),
@@ -495,7 +496,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () => MainShell.of(context)?.setIndex(2),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondary,
                         foregroundColor: Colors.white,

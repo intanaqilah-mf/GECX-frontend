@@ -68,12 +68,19 @@ class MainShell extends StatefulWidget {
   final String customerId;
   const MainShell({super.key, required this.customerId});
 
+  static _MainShellState? of(BuildContext context) =>
+      context.findAncestorStateOfType<_MainShellState>();
+
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
+
+  void setIndex(int index) {
+    setState(() => _index = index);
+  }
 
   @override
   Widget build(BuildContext context) {

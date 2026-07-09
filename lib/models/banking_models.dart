@@ -4,6 +4,8 @@ class CustomerProfile {
   final String? email;
   final String? accountNumber;
   final bool found;
+  final bool hasCard;
+  final CardModel? cardInfo;
 
   CustomerProfile({
     required this.customerId,
@@ -11,6 +13,8 @@ class CustomerProfile {
     this.email,
     this.accountNumber,
     required this.found,
+    this.hasCard = false,
+    this.cardInfo,
   });
 
   factory CustomerProfile.fromJson(Map<String, dynamic> json) {
@@ -20,6 +24,8 @@ class CustomerProfile {
       email: json['email'],
       accountNumber: json['account_number'],
       found: json['found'] ?? false,
+      hasCard: json['has_card'] ?? false,
+      cardInfo: json['card_info'] != null ? CardModel.fromJson(json['card_info']) : null,
     );
   }
 }
@@ -34,6 +40,11 @@ class CardModel {
   final String? expiryDate;
   final String? cardType;
   final String? creditLimit;
+  final double spendingLimit;
+  final double spentAmount;
+  final String cvv;
+  final String? statementBillDate;
+  final double lastStatementBalance;
 
   CardModel({
     required this.cardId,
@@ -45,6 +56,11 @@ class CardModel {
     this.expiryDate,
     this.cardType,
     this.creditLimit,
+    this.spendingLimit = 0.0,
+    this.spentAmount = 0.0,
+    this.cvv = '•••',
+    this.statementBillDate,
+    this.lastStatementBalance = 0.0,
   });
 
   factory CardModel.fromJson(Map<String, dynamic> json) {
@@ -58,6 +74,11 @@ class CardModel {
       expiryDate: json['expiry_date'] ?? 'MM/YY',
       cardType: json['card_type'] ?? 'Visa Platinum',
       creditLimit: json['credit_limit']?.toString() ?? '0',
+      spendingLimit: (json['spending_limit'] ?? 0.0).toDouble(),
+      spentAmount: (json['spent_amount'] ?? 0.0).toDouble(),
+      cvv: json['cvv'] ?? '•••',
+      statementBillDate: json['statement_bill_date'],
+      lastStatementBalance: (json['last_statement_balance'] ?? 0.0).toDouble(),
     );
   }
 }
