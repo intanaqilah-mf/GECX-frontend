@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "fcc63eb411ac5bc9",
+        "id": "f54245b643858a73",
         "type": "tabs",
         "children": [
           {
-            "id": "ff614efea4f7dcce",
+            "id": "843a0c7d51b93ebb",
             "type": "leaf",
             "state": {
               "type": "graph",
@@ -176,11 +176,15 @@
       "bases:Create new base": false
     }
   },
-  "active": "ff614efea4f7dcce",
+  "active": "b927939e3cba20bb",
   "lastOpenFiles": [
+    "docs/Implementation-Plan-Support-Refactor.md~",
+    "docs/UI-Workflows.md~",
+    "docs/Support-Refactor-Tasks.md",
     "docs/UI-Workflows.md",
-    "docs/Architectural-Decisions.md",
     "docs/API-Reference.md",
+    "docs/Implementation-Plan-Support-Refactor.md",
+    "docs/Architectural-Decisions.md",
     "docs",
     "Untitled.md"
   ]
