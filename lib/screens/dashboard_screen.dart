@@ -104,6 +104,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       position: absolute !important;
       top: 0 !important; left: 0 !important;
       width: 100% !important; height: 100% !important;
+      --chat-messenger-color--primary: #1e40af;
+      --chat-messenger-color--primary-container: #1e40af;
+      --chat-messenger-color--on-primary: #ffffff;
+      --chat-messenger-color--secondary: #7e22ce;
+      --chat-messenger-color--surface: #ffffff;
+    }
+    chat-messenger-container::part(titlebar) {
+      background: linear-gradient(to right, #0f172a, #1e40af, #7e22ce) !important;
     }
   </style>
   <script defer src="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/chat-messenger.js"></script>
@@ -123,7 +131,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   </script>
   <chat-messenger url-allowlist="*">
     <chat-messenger-container
-        chat-title="ACN Bank Demo"
+        chat-title="ACN Bank Assistant"
         chat-title-icon="https://gstatic.com/dialogflow-console/common/assets/ccai-favicons/conversational_agents.png"
         enable-file-upload
         enable-audio-input
@@ -242,7 +250,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               // Header
               Container(
-                color: const Color(0xFF0f172a),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0f172a), Color(0xFF1e40af), Color(0xFF7e22ce)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: SafeArea(
                   bottom: false,

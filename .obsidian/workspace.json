@@ -178,6 +178,7 @@
   },
   "active": "843a0c7d51b93ebb",
   "lastOpenFiles": [
+    "docs/Architectural-Decisions.md",
     "docs/AI-Assistant-Implementation.md",
     "lib/backend/index.html",
     "lib/backend/app/index.html",
@@ -204,7 +205,6 @@
     "docs/UI-Workflows.md",
     "docs/API-Reference.md",
     "docs/Implementation-Plan-Support-Refactor.md",
-    "docs/Architectural-Decisions.md",
     "Untitled.md"
   ]
 }
