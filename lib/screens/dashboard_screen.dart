@@ -168,13 +168,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisCount: 2,
                       mainAxisSpacing: 8,
                       crossAxisSpacing: 8,
-                      childAspectRatio: 3.5,
+                      childAspectRatio: 5.5,
                       children: [
                         _buildSuggestionItem(Icons.auto_awesome_outlined, 'What ACN Bank can do?'),
-                        _buildSuggestionItem(Icons.phone_android, 'Pay via screens'),
                         _buildSuggestionItem(Icons.arrow_outward, 'Pay @someone'),
                         _buildSuggestionItem(Icons.file_copy_outlined, 'Upload file and pay'),
-                        _buildSuggestionItem(Icons.camera_alt_outlined, 'Snap and pay'),
                         _buildSuggestionItem(Icons.history, 'Show latest transfers'),
                       ],
                     ),
@@ -222,53 +220,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     },
                   ),
                   const SizedBox(height: 20),
-                  if (_chatMessages.length <= 1)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.card_giftcard, color: Colors.purple),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('ACN Bank REFERRAL',
-                                    style: GoogleFonts.inter(
-                                        color: Colors.white70,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 4),
-                                Text('Transfer with ACN Bank, get rewards',
-                                    style: GoogleFonts.inter(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500)),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.close, color: Colors.white54, size: 16),
-                        ],
-                      ),
-                    ),
                 ],
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 60),
             child: Column(
               children: [
                 Container(
@@ -302,11 +259,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  '100% Malaysian made 🇲🇾 In partnership with YTL AI Labs.',
-                  style: GoogleFonts.inter(color: Colors.white38, fontSize: 10),
-                ),
-                const SizedBox(height: 8),
                 const Icon(Icons.keyboard_arrow_up, color: Colors.white38),
               ],
             ),
@@ -318,7 +270,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildSuggestionItem(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
@@ -437,8 +389,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 24),
                     if (data.summary['has_card_ready_for_activation'] == true)
                       _buildActivationBanner(context, data.latestCard?.cardId),
-                    const SizedBox(height: 24),
-                    if (data.latestCard != null) _buildCardSection(data.latestCard!),
                     const SizedBox(height: 24),
                     _buildTransactions(),
                   ]),
@@ -641,206 +591,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildCardSection(CardModel card) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Your New Card',
-                    style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary)),
-                Text(card.status == 'active' ? 'Active and ready' : 'Pending Activation',
-                    style: GoogleFonts.inter(
-                        fontSize: 13, color: AppColors.onSurfaceVariant)),
-              ],
-            ),
-            TextButton(
-              onPressed: () => MainShell.of(context)?.setIndex(2),
-              child: Text('View Details',
-                  style: GoogleFonts.inter(
-                      color: AppColors.secondary, fontWeight: FontWeight.w600)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8)
-            ],
-          ),
-          child: Column(
-            children: [
-              AspectRatio(
-                aspectRatio: 1.58,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF1a2744), Color(0xFF000a1e), Color(0xFF1a3060)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6))
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('VISA',
-                              style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontStyle: FontStyle.italic,
-                                  fontSize: 18,
-                                  letterSpacing: 2)),
-                          const Icon(Icons.contactless, color: Colors.white70),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(card.cardType ?? 'Platinum Member',
-                              style: GoogleFonts.inter(
-                                  color: Colors.white54, fontSize: 10)),
-                          const SizedBox(height: 4),
-                          Text(card.cardNumber ?? '•••• •••• •••• 8842',
-                              style: GoogleFonts.robotoMono(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  letterSpacing: 3)),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(card.cardHolderName ?? 'ALEXANDER NEWMAN',
-                                  style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600)),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text('Exp',
-                                      style: GoogleFonts.inter(
-                                          color: Colors.white54, fontSize: 9)),
-                                  Text(card.expiryDate ?? '08/28',
-                                      style: GoogleFonts.inter(
-                                          color: Colors.white, fontSize: 12)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Limit',
-                            style: GoogleFonts.inter(
-                                fontSize: 12, color: AppColors.onSurfaceVariant)),
-                        Text('\$${card.spendingLimit.toStringAsFixed(0)}',
-                            style: GoogleFonts.inter(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary)),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Spent',
-                            style: GoogleFonts.inter(
-                                fontSize: 12, color: AppColors.onSurfaceVariant)),
-                        Text('\$${card.spentAmount.toStringAsFixed(2)}',
-                            style: GoogleFonts.inter(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: (card.spendingLimit > 0) ? (card.spentAmount / card.spendingLimit) : 0.0,
-                  backgroundColor: AppColors.surfaceContainerHigh,
-                  valueColor:
-                      const AlwaysStoppedAnimation<Color>(AppColors.secondary),
-                  minHeight: 6,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => MainShell.of(context)?.setIndex(2),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.secondary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                      child: Text('Manage Card',
-                          style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w600, fontSize: 13)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.outlineVariant),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.lock_outline,
-                          color: AppColors.onSurfaceVariant),
-                      onPressed: () {},
-                      iconSize: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildTransactions() {
     const txns = [
