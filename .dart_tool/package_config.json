@@ -86,6 +86,12 @@
       "languageVersion": "3.10"
     },
     {
+      "name": "flutter_web_plugins",
+      "rootUri": "file:///C:/Users/intan.n.mohd.faddil/flutter/packages/flutter_web_plugins",
+      "packageUri": "lib/",
+      "languageVersion": "3.10"
+    },
+    {
       "name": "google_fonts",
       "rootUri": "file:///C:/Users/intan.n.mohd.faddil/AppData/Local/Pub/Cache/hosted/pub.dev/google_fonts-6.3.3",
       "packageUri": "lib/",
@@ -318,6 +324,36 @@
       "rootUri": "file:///C:/Users/intan.n.mohd.faddil/AppData/Local/Pub/Cache/hosted/pub.dev/web-1.1.1",
       "packageUri": "lib/",
       "languageVersion": "3.4"
+    },
+    {
+      "name": "webview_flutter",
+      "rootUri": "file:///C:/Users/intan.n.mohd.faddil/AppData/Local/Pub/Cache/hosted/pub.dev/webview_flutter-4.14.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.10"
+    },
+    {
+      "name": "webview_flutter_android",
+      "rootUri": "file:///C:/Users/intan.n.mohd.faddil/AppData/Local/Pub/Cache/hosted/pub.dev/webview_flutter_android-4.13.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.12"
+    },
+    {
+      "name": "webview_flutter_platform_interface",
+      "rootUri": "file:///C:/Users/intan.n.mohd.faddil/AppData/Local/Pub/Cache/hosted/pub.dev/webview_flutter_platform_interface-2.15.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
+    },
+    {
+      "name": "webview_flutter_web",
+      "rootUri": "file:///C:/Users/intan.n.mohd.faddil/AppData/Local/Pub/Cache/hosted/pub.dev/webview_flutter_web-0.2.3+4",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "webview_flutter_wkwebview",
+      "rootUri": "file:///C:/Users/intan.n.mohd.faddil/AppData/Local/Pub/Cache/hosted/pub.dev/webview_flutter_wkwebview-3.26.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.12"
     },
     {
       "name": "xdg_directories",

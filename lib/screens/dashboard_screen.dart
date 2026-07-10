@@ -1,10 +1,28 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/foundation.dart' show kIsWeb, compute;
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+// Platform utilities for Web/Mobile compatibility
+import '../services/platform_utils.dart'
+    if (dart.library.html) '../services/platform_utils_web.dart';
 import '../theme/app_colors.dart';
 import '../models/banking_models.dart';
 import '../services/api_service.dart';
 import 'card_activation_screen.dart';
 import '../main.dart';
+
+// Runs in a background isolate — rootBundle cannot be called here, only encoding.
+List<Map<String, String>> _encodeCardImages(Map<String, Uint8List> byteMap) {
+  return byteMap.entries.map((e) => {
+    'name': e.key,
+    'image_url': 'data:image/png;base64,${base64Encode(e.value)}',
+    'description': 'Premium benefits for your lifestyle.',
+  }).toList();
+}
 
 class DashboardScreen extends StatefulWidget {
   final String customerId;
@@ -18,15 +36,135 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final ApiService _apiService = ApiService();
   late Future<HomeData> _homeDataFuture;
   bool _isAiExpanded = false;
-  final List<Map<String, String>> _chatMessages = [
-    {'role': 'assistant', 'content': 'Hi! I\'m your ACN Bank AI assistant. How can I help you today?'}
-  ];
-  final TextEditingController _chatController = TextEditingController();
+  
+  late final WebViewController _webController;
+  bool _isWebViewReady = false;
+  bool _isPageLoaded = false;
+  bool _hasInjectedCards = false;
 
   @override
   void initState() {
     super.initState();
     _refreshData();
+    
+    if (kIsWeb) {
+      // Register a native iframe factory for Web to avoid 'data:' URL security issues.
+      // We use the absolute origin to ensure the browser doesn't treat it as a data URL.
+      registerWebViewFactory('acn-chat-iframe', '${Uri.base.origin}/chat.html');
+      _isWebViewReady = true;
+      _isPageLoaded = true;
+    } else {
+      _initWebViewController();
+    }
+  }
+
+  Future<void> _initWebViewController() async {
+    _webController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000));
+
+    if (!kIsWeb) {
+      _webController.setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (String url) {
+            _isPageLoaded = true;
+            if (_isAiExpanded && !_hasInjectedCards) {
+              _hasInjectedCards = true;
+              _injectCardData();
+            }
+          },
+        ),
+      );
+      _webController.loadHtmlString(_getMessengerHtml());
+    } else {
+      _isPageLoaded = true; 
+      // On Web, we MUST load from a real URL to enable sessionStorage.
+      // We'll construct the absolute URL manually to ensure no 'data:' URL fallback.
+      final String origin = Uri.base.origin;
+      // Ensure we don't have double slashes if origin ends with /
+      final String path = origin.endsWith('/') ? 'chat.html' : '/chat.html';
+      final String fullUrl = '$origin$path';
+      debugPrint("ACN Web: Loading messenger from $fullUrl");
+      _webController.loadRequest(Uri.parse(fullUrl));
+    }
+
+    setState(() => _isWebViewReady = true);
+  }
+
+  String _getMessengerHtml() {
+    return r'''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; padding: 0; background-color: transparent; overflow: hidden; height: 100vh; }
+    chat-messenger {
+      position: absolute !important;
+      top: 0 !important; left: 0 !important;
+      width: 100% !important; height: 100% !important;
+    }
+  </style>
+  <script defer src="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/chat-messenger.js"></script>
+  <link rel="stylesheet" href="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/themes/chat-messenger-default.css">
+  <link rel="stylesheet" href="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/themes/chat-messenger-layout.css">
+</head>
+<body>
+  <script>
+    window.addEventListener("chat-messenger-loaded", () => {
+      chatSdk.registerContext(
+        chatSdk.prebuilts.ces.createContext({
+          deploymentName: "projects/483471568825/locations/us/apps/27be6c70-74dc-4e50-a3e8-25b032e7c965/deployments/7cbb68f9-147f-4698-be02-e7ea5fa5d1a3",
+          tokenBroker: { enableTokenBroker: true, enableRecaptcha: false }
+        }),
+      );
+    });
+  </script>
+  <chat-messenger url-allowlist="*">
+    <chat-messenger-container
+        chat-title="ACN Bank Demo"
+        chat-title-icon="https://gstatic.com/dialogflow-console/common/assets/ccai-favicons/conversational_agents.png"
+        enable-file-upload
+        enable-audio-input
+    >
+      <chat-reset-session-button slot="titlebar-actions" title-text="Start new chat"></chat-reset-session-button>
+      <chat-toggle-dialog-button slot="titlebar-actions" title-text-expanded="Collapse" title-text-collapsed="Expand"></chat-toggle-dialog-button>
+      <chat-messenger-close-button slot="titlebar-actions" title-text="Close"></chat-messenger-close-button>
+    </chat-messenger-container>
+  </chat-messenger>
+</body>
+</html>
+''';
+  }
+
+  Future<void> _injectCardData() async {
+    const cardImages = {
+      'Visa Platinum': 'lib/assets/ChatGPT Image May 24, 2026, 06_03_30 PM.png',
+      'World Elite Mastercard': 'lib/assets/ChatGPT Image May 24, 2026, 06_05_06 PM.png',
+      'Infinite Cashback': 'lib/assets/ChatGPT Image May 24, 2026, 06_06_18 PM.png',
+      'Student Rewards': 'lib/assets/ChatGPT Image May 24, 2026, 06_07_55 PM.png',
+      'Business Gold': 'lib/assets/ChatGPT Image May 24, 2026, 06_09_25 PM.png',
+    };
+
+    // Load raw bytes on the main isolate (rootBundle requires it).
+    final Map<String, Uint8List> byteMap = {};
+    for (final entry in cardImages.entries) {
+      try {
+        final data = await rootBundle.load(entry.value);
+        byteMap[entry.key] = data.buffer.asUint8List();
+      } catch (e) {
+        debugPrint("Error loading asset ${entry.value}: $e");
+      }
+    }
+
+    // base64Encode on ~10 MB of PNG data is CPU-heavy — run it in a background isolate.
+    final cards = await compute(_encodeCardImages, byteMap);
+
+    final String jsonCards = jsonEncode(cards);
+    await _webController.runJavaScript(
+      'window.ACN_AVAILABLE_CARDS = $jsonCards; console.log("ACN Cards injected");',
+    );
   }
 
   void _refreshData() {
@@ -37,7 +175,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildAIButton(BuildContext context) {
     return GestureDetector(
-      onTap: () => setState(() => _isAiExpanded = true),
+      onTap: () {
+        setState(() => _isAiExpanded = true);
+        // runJavaScript is not implemented in webview_flutter_web 0.2.x
+        if (!kIsWeb && _isPageLoaded && !_hasInjectedCards) {
+          _hasInjectedCards = true;
+          _injectCardData();
+        }
+      },
       child: Container(
         padding: const EdgeInsets.all(1.2),
         decoration: BoxDecoration(
@@ -72,223 +217,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _handleSendMessage() {
-    if (_chatController.text.trim().isEmpty) return;
-    setState(() {
-      _chatMessages.add({'role': 'user', 'content': _chatController.text});
-      _chatController.clear();
-      // Simulate AI response
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (mounted) {
-          setState(() {
-            _chatMessages.add({
-              'role': 'assistant',
-              'content': 'I\'m working on that. I can help you with transfers, balance checks, and more!'
-            });
-          });
-        }
-      });
-    });
-  }
-
   Widget _buildAiExpandedSection() {
+    final double screenHeight = MediaQuery.of(context).size.height;
+    // Calculate a height that leaves room for the bottom nav but shows the chat clearly
+    final double expandedHeight = screenHeight * 0.8; 
+
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOutQuart,
-      height: _isAiExpanded ? 750 : 0,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.fastOutSlowIn,
+      height: _isAiExpanded ? expandedHeight : 0,
       clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF0f172a), Color(0xFF1e1b4b), Color(0xFF312e81), Color(0xFF4c1d95)],
-        ),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))
+        ],
       ),
-      child: Column(
-        children: [
-          // Header within expansion
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => setState(() => _isAiExpanded = false),
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      'ACN Bank',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white54),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'beta',
-                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 10),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 48),
-              ],
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-                  if (_chatMessages.length <= 1) ...[
-                    Text(
-                      'How can I help you?',
-                      style: GoogleFonts.dmSerifDisplay(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                      childAspectRatio: 5.5,
-                      children: [
-                        _buildSuggestionItem(Icons.auto_awesome_outlined, 'What ACN Bank can do?'),
-                        _buildSuggestionItem(Icons.arrow_outward, 'Pay @someone'),
-                        _buildSuggestionItem(Icons.file_copy_outlined, 'Upload file and pay'),
-                        _buildSuggestionItem(Icons.history, 'Show latest transfers'),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('Learn how to use ACN Bank AI',
-                            style: GoogleFonts.inter(color: Colors.white70, fontSize: 14)),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward, color: Colors.white70, size: 14),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                  // Chat Messages Area
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _chatMessages.length,
-                    itemBuilder: (context, index) {
-                      final msg = _chatMessages[index];
-                      final isUser = msg['role'] == 'user';
-                      return Align(
-                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isUser
-                                ? const Color(0xFF4A00E0).withValues(alpha: 0.8)
-                                : Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16).copyWith(
-                              bottomRight: isUser ? const Radius.circular(0) : null,
-                              bottomLeft: !isUser ? const Radius.circular(0) : null,
-                            ),
-                          ),
-                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-                          child: Text(
-                            msg['content']!,
-                            style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 60),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
+      child: SingleChildScrollView(
+        // Prevent internal scroll physics from fighting with the column layout
+        physics: const NeverScrollableScrollPhysics(),
+        child: SizedBox(
+          height: expandedHeight,
+          child: Column(
+            children: [
+              // Header
+              Container(
+                color: const Color(0xFF0f172a),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: SafeArea(
+                  bottom: false,
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _chatController,
-                          style: GoogleFonts.inter(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: 'Ask ACN Bank',
-                            hintStyle: GoogleFonts.inter(color: Colors.white54),
-                            border: InputBorder.none,
-                          ),
-                          onSubmitted: (_) => _handleSendMessage(),
-                        ),
-                      ),
                       IconButton(
-                        icon: const Icon(Icons.send, color: Colors.white70, size: 20),
-                        onPressed: _handleSendMessage,
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => setState(() => _isAiExpanded = false),
                       ),
-                      const Icon(Icons.add, color: Colors.white70, size: 20),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.image_outlined, color: Colors.white70, size: 20),
+                      Text(
+                        'ACN Bank Assistant',
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(width: 48),
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                const Icon(Icons.keyboard_arrow_up, color: Colors.white38),
-              ],
-            ),
+              ),
+              // The Chat Area
+              Expanded(
+                child: _isWebViewReady 
+                  ? (kIsWeb 
+                      ? const HtmlElementView(viewType: 'acn-chat-iframe')
+                      : WebViewWidget(controller: _webController))
+                  : const Center(child: CircularProgressIndicator(color: Colors.blue)),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSuggestionItem(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white70, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.inter(color: Colors.white, fontSize: 12),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -315,86 +299,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         final data = snapshot.data!;
-        return RefreshIndicator(
-          onRefresh: () async => _refreshData(),
-          child: CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                floating: true,
-                snap: true,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                scrolledUnderElevation: 1,
-                automaticallyImplyLeading: false,
-                flexibleSpace: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0f172a), Color(0xFF1e40af), Color(0xFF7e22ce)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                ),
-                leading: Padding(
-                  padding: const EdgeInsets.only(left: 16),
-                  child: Center(
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.white24,
-                      child: Text(
-                        data.customer.displayName.isNotEmpty
-                            ? data.customer.displayName.substring(0, 1).toUpperCase()
-                            : 'U',
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+        return Scaffold(
+          body: RefreshIndicator(
+            onRefresh: () async => _refreshData(),
+            child: CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  floating: true,
+                  snap: true,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  scrolledUnderElevation: 1,
+                  automaticallyImplyLeading: false,
+                  flexibleSpace: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF0f172a), Color(0xFF1e40af), Color(0xFF7e22ce)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
                     ),
                   ),
-                ),
-                centerTitle: true,
-                title: _isAiExpanded ? null : _buildAIButton(context),
-                actions: [
-                  if (!_isAiExpanded)
-                    Stack(
-                      alignment: Alignment.topRight,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                          onPressed: () {},
+                  leading: Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Center(
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.white24,
+                        child: Text(
+                          data.customer.displayName.isNotEmpty
+                              ? data.customer.displayName.substring(0, 1).toUpperCase()
+                              : 'U',
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                         ),
-                        if (data.summary['total_notifications'] > 0)
-                          Positioned(
-                            top: 10,
-                            right: 10,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
-                  const SizedBox(width: 8),
-                ],
-              ),
-              SliverToBoxAdapter(
-                child: _buildAiExpandedSection(),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    _buildBalanceCard(),
-                    const SizedBox(height: 12),
-                    _buildQuickActions(),
-                    const SizedBox(height: 24),
-                    if (data.summary['has_card_ready_for_activation'] == true)
-                      _buildActivationBanner(context, data.latestCard?.cardId),
-                    const SizedBox(height: 24),
-                    _buildTransactions(),
-                  ]),
+                  ),
+                  centerTitle: true,
+                  title: _isAiExpanded ? null : _buildAIButton(context),
+                  actions: [
+                    if (!_isAiExpanded)
+                      Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                            onPressed: () {},
+                          ),
+                          if (data.summary['total_notifications'] > 0)
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                              ),
+                            ),
+                        ],
+                      ),
+                    const SizedBox(width: 8),
+                  ],
                 ),
-              ),
-            ],
+                SliverToBoxAdapter(
+                  child: _buildAiExpandedSection(),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _buildBalanceCard(),
+                      const SizedBox(height: 12),
+                      _buildQuickActions(),
+                      const SizedBox(height: 24),
+                      if (data.summary['has_card_ready_for_activation'] == true)
+                        _buildActivationBanner(context, data.latestCard?.cardId),
+                      const SizedBox(height: 24),
+                      _buildTransactions(),
+                    ]),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -538,7 +524,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             MaterialPageRoute(
               builder: (_) => CardActivationScreen(cardId: cardId),
             ),
-          ).then((_) => _refreshData());
+          ).then((_) {
+            _refreshData();
+            MainShell.of(context)?.refresh();
+          });
         }
       },
       child: Container(

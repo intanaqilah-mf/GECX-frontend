@@ -23,10 +23,13 @@ Documentation of key user journeys and screen interactions.
 4. **Statement History**: List of past monthly statements available for download (moved from Support).
 
 ## 3. Support & AI Assistant
-**File**: [[lib/screens/statements_screen.dart]]
+**Files**: [[lib/screens/dashboard_screen.dart]], [[lib/screens/statements_screen.dart]]
 
-### Workflow
-1. User navigates to the **Support** tab (formerly Statements).
-2. **Billing Inquiries**: Access to FAQs and direct support channels (Chat/Call).
-3. **AI Assistant**: A chat-like interface for automated help with banking queries.
-4. **Green Rewards**: Enrollment for paperless statements.
+### Dashboard AI Assistant (Ask ACN Bank)
+1. User taps "Ask ACN Bank" in the top AppBar.
+2. An animated panel expands (80% screen height) containing the **Google Conversational AI (CES)** messenger.
+3. The messenger is hosted via a native iframe (`web/chat.html`) to support persistent sessions and avoid Web security restrictions.
+4. **Platform Logic**: Uses a hybrid approach with conditional imports to handle Web (`dart:ui_web`) and Mobile differently.
+
+### Support Tab
+1. User navigates to the **Support** tab.

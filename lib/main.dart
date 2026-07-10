@@ -6,6 +6,9 @@ import 'screens/payments_screen.dart';
 import 'screens/card_details_screen.dart';
 import 'screens/statements_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/application_status_screen.dart';
+import 'models/banking_models.dart';
+import 'services/api_service.dart';
 
 void main() {
   runApp(const BankingApp());
@@ -77,49 +80,72 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
+  final ApiService _apiService = ApiService();
+  late Future<HomeData> _homeDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _homeDataFuture = _apiService.getHomeData(widget.customerId);
+  }
 
   void setIndex(int index) {
     setState(() => _index = index);
   }
 
+  void refresh() {
+    setState(() {
+      _homeDataFuture = _apiService.getHomeData(widget.customerId);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: [
-          DashboardScreen(customerId: widget.customerId),
-          PaymentsScreen(customerId: widget.customerId),
-          CardDetailsScreen(customerId: widget.customerId),
-          StatementsScreen(customerId: widget.customerId),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+    return FutureBuilder<HomeData>(
+      future: _homeDataFuture,
+      builder: (context, snapshot) {
+        final hasCard = snapshot.data?.customer.hasCard ?? false;
+
+        return Scaffold(
+          body: IndexedStack(
+            index: _index,
+            children: [
+              DashboardScreen(customerId: widget.customerId),
+              PaymentsScreen(customerId: widget.customerId),
+              hasCard
+                  ? CardDetailsScreen(customerId: widget.customerId)
+                  : ApplicationStatusScreen(customerId: widget.customerId),
+              StatementsScreen(customerId: widget.customerId),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.payments_outlined),
-            selectedIcon: Icon(Icons.payments),
-            label: 'Payments',
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: (i) => setState(() => _index = i),
+            destinations: [
+              const NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.payments_outlined),
+                selectedIcon: Icon(Icons.payments),
+                label: 'Payments',
+              ),
+              NavigationDestination(
+                icon: Icon(hasCard ? Icons.credit_card_outlined : Icons.assignment_outlined),
+                selectedIcon: Icon(hasCard ? Icons.credit_card : Icons.assignment),
+                label: hasCard ? 'Cards' : 'Application',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.contact_support_outlined),
+                selectedIcon: Icon(Icons.contact_support),
+                label: 'Support',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.credit_card_outlined),
-            selectedIcon: Icon(Icons.credit_card),
-            label: 'Cards',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.contact_support_outlined),
-            selectedIcon: Icon(Icons.contact_support),
-            label: 'Support',
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
