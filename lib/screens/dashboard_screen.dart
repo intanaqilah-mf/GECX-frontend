@@ -18,6 +18,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final ApiService _apiService = ApiService();
   late Future<HomeData> _homeDataFuture;
   bool _isAiExpanded = false;
+  final List<Map<String, String>> _chatMessages = [
+    {'role': 'assistant', 'content': 'Hi! I\'m your ACN Bank AI assistant. How can I help you today?'}
+  ];
+  final TextEditingController _chatController = TextEditingController();
 
   @override
   void initState() {
@@ -68,11 +72,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _handleSendMessage() {
+    if (_chatController.text.trim().isEmpty) return;
+    setState(() {
+      _chatMessages.add({'role': 'user', 'content': _chatController.text});
+      _chatController.clear();
+      // Simulate AI response
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) {
+          setState(() {
+            _chatMessages.add({
+              'role': 'assistant',
+              'content': 'I\'m working on that. I can help you with transfers, balance checks, and more!'
+            });
+          });
+        }
+      });
+    });
+  }
+
   Widget _buildAiExpandedSection() {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOutQuart,
-      height: _isAiExpanded ? 700 : 0,
+      height: _isAiExpanded ? 750 : 0,
       clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -81,172 +104,214 @@ class _DashboardScreenState extends State<DashboardScreen> {
           colors: [Color(0xFF0f172a), Color(0xFF1e1b4b), Color(0xFF312e81), Color(0xFF4c1d95)],
         ),
       ),
-      child: SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        child: Column(
-          children: [
-            // Header within expansion
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => setState(() => _isAiExpanded = false),
-                  ),
-                  Row(
-                    children: [
-                      const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        'ACN Bank',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
+      child: Column(
+        children: [
+          // Header within expansion
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => setState(() => _isAiExpanded = false),
+                ),
+                Row(
+                  children: [
+                    const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'ACN Bank',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white54),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'beta',
-                          style: GoogleFonts.inter(color: Colors.white70, fontSize: 10),
-                        ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white54),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ],
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
+                      child: Text(
+                        'beta',
+                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 10),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 48),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(24),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  const SizedBox(height: 20),
-                  Text(
-                    'How can I help you?',
-                    style: GoogleFonts.dmSerifDisplay(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w500,
+                  const SizedBox(height: 10),
+                  if (_chatMessages.length <= 1) ...[
+                    Text(
+                      'How can I help you?',
+                      style: GoogleFonts.dmSerifDisplay(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                  GridView.count(
+                    const SizedBox(height: 24),
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 3.5,
+                      children: [
+                        _buildSuggestionItem(Icons.auto_awesome_outlined, 'What ACN Bank can do?'),
+                        _buildSuggestionItem(Icons.phone_android, 'Pay via screens'),
+                        _buildSuggestionItem(Icons.arrow_outward, 'Pay @someone'),
+                        _buildSuggestionItem(Icons.file_copy_outlined, 'Upload file and pay'),
+                        _buildSuggestionItem(Icons.camera_alt_outlined, 'Snap and pay'),
+                        _buildSuggestionItem(Icons.history, 'Show latest transfers'),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Learn how to use ACN Bank AI',
+                            style: GoogleFonts.inter(color: Colors.white70, fontSize: 14)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_forward, color: Colors.white70, size: 14),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  // Chat Messages Area
+                  ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 2.2,
-                    children: [
-                      _buildSuggestionItem(Icons.auto_awesome_outlined, 'What ACN Bank can do?'),
-                      _buildSuggestionItem(Icons.phone_android, 'Pay via screens'),
-                      _buildSuggestionItem(Icons.arrow_outward, 'Pay @someone'),
-                      _buildSuggestionItem(Icons.file_copy_outlined, 'Upload file and pay'),
-                      _buildSuggestionItem(Icons.camera_alt_outlined, 'Snap and pay'),
-                      _buildSuggestionItem(Icons.history, 'Show latest transfers'),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Learn how to use ACN Bank',
-                          style: GoogleFonts.inter(color: Colors.white70, fontSize: 14)),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.arrow_forward, color: Colors.white70, size: 14),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
+                    itemCount: _chatMessages.length,
+                    itemBuilder: (context, index) {
+                      final msg = _chatMessages[index];
+                      final isUser = msg['role'] == 'user';
+                      return Align(
+                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
+                            color: isUser
+                                ? const Color(0xFF4A00E0).withValues(alpha: 0.8)
+                                : Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16).copyWith(
+                              bottomRight: isUser ? const Radius.circular(0) : null,
+                              bottomLeft: !isUser ? const Radius.circular(0) : null,
+                            ),
                           ),
-                          child: const Icon(Icons.card_giftcard, color: Colors.purple),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('ACN Bank REFERRAL',
-                                  style: GoogleFonts.inter(
-                                      color: Colors.white70,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 4),
-                              Text('Transfer with ACN Bank, get rewards',
-                                  style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500)),
-                            ],
+                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+                          child: Text(
+                            msg['content']!,
+                            style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
                           ),
                         ),
-                        const Icon(Icons.close, color: Colors.white54, size: 16),
-                      ],
-                    ),
+                      );
+                    },
                   ),
+                  const SizedBox(height: 20),
+                  if (_chatMessages.length <= 1)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.card_giftcard, color: Colors.purple),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('ACN Bank REFERRAL',
+                                    style: GoogleFonts.inter(
+                                        color: Colors.white70,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                Text('Transfer with ACN Bank, get rewards',
+                                    style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500)),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.close, color: Colors.white54, size: 16),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text('Ask ACN Bank',
-                              style: GoogleFonts.inter(color: Colors.white54)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _chatController,
+                          style: GoogleFonts.inter(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Ask ACN Bank',
+                            hintStyle: GoogleFonts.inter(color: Colors.white54),
+                            border: InputBorder.none,
+                          ),
+                          onSubmitted: (_) => _handleSendMessage(),
                         ),
-                        const Icon(Icons.add, color: Colors.white70, size: 20),
-                        const SizedBox(width: 12),
-                        const Icon(Icons.image_outlined, color: Colors.white70, size: 20),
-                        const SizedBox(width: 12),
-                        const Icon(Icons.alternate_email, color: Colors.white70, size: 20),
-                        const SizedBox(width: 12),
-                        const Icon(Icons.auto_awesome, color: Colors.white70, size: 20),
-                      ],
-                    ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.send, color: Colors.white70, size: 20),
+                        onPressed: _handleSendMessage,
+                      ),
+                      const Icon(Icons.add, color: Colors.white70, size: 20),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.image_outlined, color: Colors.white70, size: 20),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '100% Malaysian made 🇲🇾 In partnership with YTL AI Labs.',
-                    style: GoogleFonts.inter(color: Colors.white38, fontSize: 10),
-                  ),
-                  const SizedBox(height: 8),
-                  const Icon(Icons.keyboard_arrow_up, color: Colors.white38),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '100% Malaysian made 🇲🇾 In partnership with YTL AI Labs.',
+                  style: GoogleFonts.inter(color: Colors.white38, fontSize: 10),
+                ),
+                const SizedBox(height: 8),
+                const Icon(Icons.keyboard_arrow_up, color: Colors.white38),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
