@@ -176,8 +176,13 @@
       "bases:Create new base": false
     }
   },
-  "active": "b927939e3cba20bb",
+  "active": "843a0c7d51b93ebb",
   "lastOpenFiles": [
+    "lib/backend/seed_customers.py",
+    "lib/backend/requirements.txt",
+    "lib/backend/README.md",
+    "lib/backend/Procfile",
+    "lib/log.txt",
     "docs/Implementation-Plan-Support-Refactor.md~",
     "docs/UI-Workflows.md~",
     "docs/Support-Refactor-Tasks.md",
