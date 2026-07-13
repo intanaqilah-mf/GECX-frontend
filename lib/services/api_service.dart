@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/banking_models.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 class ApiService {
   // Automatically select the correct URL based on the platform
@@ -83,6 +86,60 @@ class ApiService {
       return List<Map<String, dynamic>>.from(data);
     } else {
       return [];
+    }
+  }
+
+  Future<void> registerDevice(String customerId, String fcmToken) async {
+    final deviceId = await _getOrCreateDeviceId();
+    final response = await http.post(
+      Uri.parse('$baseUrl/customers/$customerId/devices'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'device_id': deviceId,
+        'fcm_token': fcmToken,
+        'platform': _platform,
+        'app_version': '1.0.0',
+        'os_version': 'unknown',
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('registerDevice failed: ${response.statusCode}');
+    }
+  }
+
+  static Future<String> _getOrCreateDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    var id = prefs.getString('acn_device_id');
+    if (id == null) {
+      id = _generateUuid();
+      await prefs.setString('acn_device_id', id);
+    }
+    return id;
+  }
+
+  static String _generateUuid() {
+    final rng = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rng.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10xx
+    String hex(List<int> b) =>
+        b.map((n) => n.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex(bytes.sublist(0, 4))}-'
+        '${hex(bytes.sublist(4, 6))}-'
+        '${hex(bytes.sublist(6, 8))}-'
+        '${hex(bytes.sublist(8, 10))}-'
+        '${hex(bytes.sublist(10, 16))}';
+  }
+
+  static String get _platform {
+    if (kIsWeb) return 'web';
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'android';
+      case TargetPlatform.iOS:
+        return 'ios';
+      default:
+        return 'unknown';
     }
   }
 }

@@ -3,8 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
 import '../services/api_service.dart';
-import 'dart:math';
-
+import '../services/fcm_service.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -17,6 +16,18 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   final _apiService = ApiService();
+
+  void _registerDeviceSilently(String customerId) {
+    FcmService.setCustomerId(customerId);
+    FcmService.requestPermissionAndGetToken().then((token) async {
+      if (token == null) return;
+      try {
+        await _apiService.registerDevice(customerId, token);
+      } catch (e) {
+        debugPrint('Device registration failed: $e');
+      }
+    });
+  }
 
   void _login() async {
     final customerId = _customerIdController.text.trim();
@@ -34,6 +45,9 @@ class _LoginScreenState extends State<LoginScreen> {
               builder: (context) => MainShell(customerId: customerId),
             ),
           );
+          // Fire-and-forget registration via a non-async helper to avoid the
+          // unawaited_futures lint; login should not block on this.
+          _registerDeviceSilently(customerId);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Customer ID not found in database.')),

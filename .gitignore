@@ -1,6 +1,9 @@
 *.iml
 .gradle
 /local.properties
+.dart_tool/
+.env
+android/app/google-services.json
 # Backend
 /lib/backend/
 /.idea/caches

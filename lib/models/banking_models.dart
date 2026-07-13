@@ -45,6 +45,7 @@ class CardModel {
   final String cvv;
   final String? statementBillDate;
   final double lastStatementBalance;
+  final String? deepLink;
 
   CardModel({
     required this.cardId,
@@ -61,6 +62,7 @@ class CardModel {
     this.cvv = '•••',
     this.statementBillDate,
     this.lastStatementBalance = 0.0,
+    this.deepLink,
   });
 
   factory CardModel.fromJson(Map<String, dynamic> json) {
@@ -79,6 +81,7 @@ class CardModel {
       cvv: json['cvv'] ?? '•••',
       statementBillDate: json['statement_bill_date'],
       lastStatementBalance: (json['last_statement_balance'] ?? 0.0).toDouble(),
+      deepLink: json['deep_link'],
     );
   }
 }

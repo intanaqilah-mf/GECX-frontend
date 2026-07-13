@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/fcm_service.dart';
+import 'services/navigation_service.dart';
 import 'theme/app_colors.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/payments_screen.dart';
@@ -68,6 +69,8 @@ class BankingApp extends StatelessWidget {
         dividerTheme: const DividerThemeData(
             color: AppColors.outlineVariant, thickness: 1),
       ),
+      navigatorKey: navigatorKey,
+      scaffoldMessengerKey: scaffoldMessengerKey,
       home: const LoginScreen(),
     );
   }
