@@ -17,3 +17,5 @@
 local.properties
 # Backend
 /lib/backend/
+
+web/firebase-messaging-sw.js
