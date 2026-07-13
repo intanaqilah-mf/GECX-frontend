@@ -1,5 +1,5 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show rootBundle, Clipboard, ClipboardData;
 import 'package:flutter/foundation.dart' show kIsWeb, compute;
 import 'dart:convert';
 import 'dart:typed_data';
@@ -12,6 +12,7 @@ import '../services/platform_utils.dart'
 import '../theme/app_colors.dart';
 import '../models/banking_models.dart';
 import '../services/api_service.dart';
+import '../services/fcm_service.dart';
 import 'card_activation_screen.dart';
 import '../main.dart';
 
@@ -181,16 +182,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  void _openAiChat() {
+    setState(() => _isAiExpanded = true);
+    // runJavaScript is not implemented in webview_flutter_web 0.2.x
+    if (!kIsWeb && _isPageLoaded && !_hasInjectedCards) {
+      _hasInjectedCards = true;
+      _injectCardData();
+    }
+  }
+
+  Future<void> _requestNotificationsAndShowToken(BuildContext context) async {
+    final token = await FcmService.requestPermissionAndGetToken();
+    if (!context.mounted) return;
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Notification permission denied. Enable it in your browser site settings.'),
+      ));
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Your FCM Token'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Share this token with your backend developer:',
+                style: TextStyle(fontSize: 13)),
+            const SizedBox(height: 12),
+            SelectableText(
+              token,
+              style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: token));
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Token copied to clipboard')),
+              );
+            },
+            child: const Text('Copy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAIButton(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        setState(() => _isAiExpanded = true);
-        // runJavaScript is not implemented in webview_flutter_web 0.2.x
-        if (!kIsWeb && _isPageLoaded && !_hasInjectedCards) {
-          _hasInjectedCards = true;
-          _injectCardData();
-        }
-      },
+      onTap: _openAiChat,
       child: Container(
         padding: const EdgeInsets.all(1.2),
         decoration: BoxDecoration(
@@ -358,7 +409,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                            onPressed: () {},
+                            onPressed: () => _requestNotificationsAndShowToken(context),
                           ),
                           if (data.summary['total_notifications'] > 0)
                             Positioned(
@@ -386,9 +437,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(height: 12),
                       _buildQuickActions(),
                       const SizedBox(height: 24),
-                      if (data.summary['has_card_ready_for_activation'] == true)
+                      if (data.summary['has_card_ready_for_activation'] == true) ...[
                         _buildActivationBanner(context, data.latestCard?.cardId),
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
+                      ],
+                      _buildApplicationsSection(data),
                       _buildTransactions(),
                     ]),
                   ),
@@ -596,6 +649,136 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
 
+  Widget _buildApplicationsSection(HomeData data) {
+    // If user already has an active card, we don't show the tracking section
+    // unless they have a NEW application that is not yet fully activated.
+    if (data.customer.hasCard && data.summary['total_applications'] == 0) {
+      return const SizedBox.shrink();
+    }
+
+    if (data.summary['total_applications'] == 0) {
+      return _buildNoApplicationCard();
+    }
+
+    final app = data.latestApplication;
+    if (app == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Applications',
+                style: GoogleFonts.inter(
+                    fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary)),
+            TextButton(
+              onPressed: () => MainShell.of(context)?.setIndex(2),
+              child: Text('View Details',
+                  style: GoogleFonts.inter(
+                      color: AppColors.secondary, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () => MainShell.of(context)?.setIndex(2),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.assignment_outlined,
+                      color: AppColors.secondary, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(app['selected_product_name'] ?? 'Credit Card Application',
+                          style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary)),
+                      const SizedBox(height: 2),
+                      Text('Status: ${app['status']?.toUpperCase() ?? 'PENDING'}',
+                          style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: app['status'] == 'approved'
+                                  ? Colors.green
+                                  : AppColors.onSurfaceVariant,
+                              fontWeight: app['status'] == 'approved'
+                                  ? FontWeight.w600
+                                  : FontWeight.normal)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNoApplicationCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.secondaryContainer.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.credit_card, color: AppColors.secondary),
+              const SizedBox(width: 12),
+              Text('Looking for a Card?',
+                  style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+              'You haven\'t applied for any credit cards yet. Ask our AI assistant to help you find the best card for your needs.',
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _openAiChat,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: Text('Ask ACN Bank',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTransactions() {
     const txns = [
       (Icons.shopping_cart_outlined, 'Apple Store', 'Today, 2:45 PM', '-\$1,299.00', 'Electronics', true),
@@ -607,6 +790,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
