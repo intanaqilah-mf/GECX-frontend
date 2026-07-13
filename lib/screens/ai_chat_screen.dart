@@ -1,98 +1,209 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle, SystemUiOverlayStyle;
+import 'package:flutter/foundation.dart' show kIsWeb, compute, defaultTargetPlatform, TargetPlatform;
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../services/platform_utils.dart'
+    if (dart.library.html) '../services/platform_utils_web.dart';
+import '../theme/app_colors.dart';
+
+List<Map<String, String>> _encodeCardImages(Map<String, Uint8List> byteMap) {
+  return byteMap.entries.map((e) => {
+    'name': e.key,
+    'image_url': 'data:image/png;base64,${base64Encode(e.value)}',
+    'description': 'Premium benefits for your lifestyle.',
+  }).toList();
+}
+
+class AiChatScreen extends StatefulWidget {
+  const AiChatScreen({super.key, required this.customerId});
+  final String customerId;
+
+  @override
+  State<AiChatScreen> createState() => _AiChatScreenState();
+}
+
+class _AiChatScreenState extends State<AiChatScreen> {
+  late final WebViewController _webController;
+  bool _isWebViewReady = false;
+  bool _hasInjectedCards = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) {
+      registerWebViewFactory('acn-chat-iframe', '${Uri.base.origin}/chat.html');
+      _isWebViewReady = true;
+    } else {
+      _initWebViewController();
+    }
+  }
+
+  Future<void> _initWebViewController() async {
+    PlatformWebViewControllerCreationParams params =
+        const PlatformWebViewControllerCreationParams();
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      );
+    }
+
+    _webController = WebViewController.fromPlatformCreationParams(params)
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000));
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final androidController = _webController.platform as AndroidWebViewController;
+      await androidController.setOnShowFileSelector(_onShowFileChooser);
+      await androidController.setMediaPlaybackRequiresUserGesture(false);
+    }
+
+    if (!kIsWeb) {
+      _webController.setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (String url) {
+            if (!_hasInjectedCards) {
+              _hasInjectedCards = true;
+              _injectCardData();
+            }
+          },
+        ),
+      );
+      _webController.loadHtmlString(_getChatHtml(), baseUrl: 'https://acnbank.ca');
+    } else {
+      final String origin = Uri.base.origin;
+      final String path = origin.endsWith('/') ? 'chat.html' : '/chat.html';
+      _webController.loadRequest(Uri.parse('$origin$path'));
+    }
+
+    setState(() => _isWebViewReady = true);
+  }
+
+  Future<List<String>> _onShowFileChooser(FileSelectorParams params) async {
+    if (!mounted) return [];
+
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return [];
+    final XFile? file = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 85,
+    );
+    if (file == null) return [];
+    return [file.path];
+  }
+
+  Future<void> _injectCardData() async {
+    const cardImages = {
+      'Visa Platinum': 'lib/assets/ChatGPT Image May 24, 2026, 06_03_30 PM.png',
+      'World Elite Mastercard': 'lib/assets/ChatGPT Image May 24, 2026, 06_05_06 PM.png',
+      'Infinite Cashback': 'lib/assets/ChatGPT Image May 24, 2026, 06_06_18 PM.png',
+      'Student Rewards': 'lib/assets/ChatGPT Image May 24, 2026, 06_07_55 PM.png',
+      'Business Gold': 'lib/assets/ChatGPT Image May 24, 2026, 06_09_25 PM.png',
+    };
+
+    final Map<String, Uint8List> byteMap = {};
+    for (final entry in cardImages.entries) {
+      try {
+        final data = await rootBundle.load(entry.value);
+        byteMap[entry.key] = data.buffer.asUint8List();
+      } catch (e) {
+        debugPrint('Error loading asset ${entry.value}: $e');
+      }
+    }
+
+    final cards = await compute(_encodeCardImages, byteMap);
+    final String jsonCards = jsonEncode(cards);
+    await _webController.runJavaScript(
+      'window.ACN_AVAILABLE_CARDS = $jsonCards; console.log("ACN Cards injected");',
+    );
+  }
+
+  String _getChatHtml() {
+    return r'''
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ACN Bank - Virtual Assistant</title>
-  <script defer src="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/chat-messenger.js"></script>
-  <link rel="stylesheet" href="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/themes/chat-messenger-default.css">
-  <link rel="stylesheet" href="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/themes/chat-messenger-layout.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
-    html, body {
-      margin: 0; padding: 0;
-      width: 100%; height: 100vh;
-      background-color: #FDFAFF;
-      font-family: 'DM Sans', -apple-system, sans-serif;
-      color: #140025;
-      overflow: hidden;
-    }
-    .loading-container {
-      position: absolute; top: 0; left: 0;
-      width: 100%; height: 100vh;
-      display: flex; flex-direction: column;
-      justify-content: center; align-items: center;
-      text-align: center;
-      z-index: 10;
-      background: linear-gradient(160deg, #FDFAFF 0%, #fff 70%);
-      transition: opacity 0.4s ease;
-    }
-    .loading-logo {
-      width: 50px; height: 50px;
-      background: #A100FF;
-      border-radius: 12px;
-      color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px; font-weight: 900;
-      margin-bottom: 24px;
-      box-shadow: 0 4px 16px rgba(161,0,255,0.25);
-    }
-    .loading-container h2 {
-      font-weight: 800; color: #140025; margin-bottom: 8px;
-    }
-    .loading-container p {
-      color: #6B5B8A; font-size: 14px;
-    }
+    body { margin: 0; padding: 0; background-color: transparent; overflow: hidden; height: 100vh; }
+    .acn-widget-root { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; width: 100%; box-sizing: border-box; }
     chat-messenger {
       position: absolute !important;
       top: 0 !important; left: 0 !important;
-      width: 100% !important; height: 100vh !important;
-      max-height: 100vh !important;
-      margin: 0 !important; padding: 0 !important;
-      z-index: 5;
-      display: none;
+      width: 100% !important; height: 100% !important;
       --chat-messenger-color--primary: #A100FF;
       --chat-messenger-color--primary-container: #7500C0;
       --chat-messenger-color--on-primary: #ffffff;
       --chat-messenger-color--secondary: #7000BB;
       --chat-messenger-color--surface: #ffffff;
     }
-    chat-messenger-container::part(titlebar) {
-      background: linear-gradient(to right, #140025, #A100FF, #7500C0) !important;
+    /* ACN-branded user message bubbles */
+    chat-messenger-container::part(user-message) {
+      background: linear-gradient(135deg, #A100FF, #7500C0) !important;
+      color: #ffffff !important;
     }
   </style>
+  <style>
+    /* Load Material Icons from jsDelivr (avoids fonts.gstatic.com SSL issues on Android emulator) */
+    @font-face {
+      font-family: 'Material Icons';
+      font-style: normal;
+      font-weight: 400;
+      src: url('https://cdn.jsdelivr.net/npm/material-icons@1.13.12/iconfont/MaterialIcons-Regular.woff2') format('woff2'),
+           url('https://cdn.jsdelivr.net/npm/material-icons@1.13.12/iconfont/MaterialIcons-Regular.woff') format('woff');
+    }
+    .material-icons {
+      font-family: 'Material Icons';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 24px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      font-feature-settings: 'liga';
+      -webkit-font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+    }
+  </style>
+  <script defer src="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/chat-messenger.js"></script>
+  <link rel="stylesheet" href="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/themes/chat-messenger-default.css">
+  <link rel="stylesheet" href="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/themes/chat-messenger-layout.css">
 </head>
 <body>
-  <div id="loadingScreen" class="loading-container">
-    <div class="loading-logo">»</div>
-    <h2>ACN Bank Secure Channel</h2>
-    <p>Transferring your session. Please wait...</p>
-  </div>
-  <chat-messenger url-allowlist="*">
-    <chat-messenger-container
-      chat-title="ACN Bank Demo"
-      chat-title-icon="https://gstatic.com/dialogflow-console/common/assets/ccai-favicons/conversational_agents.png"
-      enable-file-upload
-      enable-audio-input
-      rich-text-rendering-enabled>
-      <chat-reset-session-button slot="titlebar-actions" title-text="Start new chat"></chat-reset-session-button>
-      <chat-toggle-dialog-button slot="titlebar-actions" title-text-expanded="Collapse" title-text-collapsed="Expand"></chat-toggle-dialog-button>
-      <chat-messenger-close-button slot="titlebar-actions" title-text="Close"></chat-messenger-close-button>
-    </chat-messenger-container>
-  </chat-messenger>
   <script>
-    /* ======================================================================
-       TEMPORARY DEMO WORKAROUND
-       The SDK sanitizer strips data-* attributes, ids, and button semantics.
-       Raw payloads live in JS memory; sanitized HTML only carries CSS classes.
-       Replace with supported SDK action handling when available.
-    ====================================================================== */
     window.ACN_WIDGET_REGISTRY = {};
-    const urlParams = new URLSearchParams(window.location.search);
-    const kycRequestId = urlParams.get("r") || urlParams.get("kyc_request_id");
-    const customerDocId = urlParams.get("c") || urlParams.get("customer_doc_id");
     const BASE = "https://raw.githubusercontent.com/embadillo/acn-bank-assets/refs/heads/main/";
     const PAYEE_LOGOS = {
       "hydro one":             BASE + "Hydro-Logo-from-web-558.jpeg",
@@ -102,21 +213,10 @@
       "toronto property tax":  BASE + "Captura%20de%20pantalla%202026-06-07%20141855.png"
     };
 
-    /* ======================================================================
-       SANITIZER
-       Gemini Live (gemini-3.1-flash-live) sometimes encodes double-quote
-       characters as <ctrl46> inside nested tool call argument payloads when
-       the input context is large (~20k+ tokens). This happens at the
-       tokenizer level and is not a model instruction issue.
-       This function intercepts raw toolCall.args before any render function
-       touches the payload, converts any <ctrlNN> sequences back to their
-       ASCII equivalents, and re-parses the JSON. If the JSON is already
-       clean the stringify/parse round-trip is a no-op.
-    ====================================================================== */
     function sanitizeLiveArgs(args) {
       if (!args || typeof args !== "object") return args;
       try {
-        const cleaned = JSON.stringify(args).replace(/<ctrl(\\d+)>/g, (_, n) =>
+        const cleaned = JSON.stringify(args).replace(/<ctrl(\d+)>/g, (_, n) =>
           String.fromCharCode(parseInt(n, 10))
         );
         return JSON.parse(cleaned);
@@ -125,7 +225,6 @@
         return args;
       }
     }
-    /* ====================================================================== */
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -166,10 +265,7 @@
     function registerWidget(items) {
       cleanupRegistry();
       const wid = "w_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
-      window.ACN_WIDGET_REGISTRY[wid] = {
-        items: Array.isArray(items) ? items : [],
-        createdAt: Date.now()
-      };
+      window.ACN_WIDGET_REGISTRY[wid] = { items: Array.isArray(items) ? items : [], createdAt: Date.now() };
       return wid;
     }
 
@@ -205,21 +301,12 @@
       return { chat, chatContainer, userInput, messageList, textarea, sendBtn };
     }
 
-    /* ======================================================================
-       MARKDOWN RENDERER
-       Converts agent markdown to HTML. Applied as a DOM post-process pass
-       after each response since the SDK renders text as plain strings.
-       Handles both normal text responses and audio transcripts where all
-       newlines are collapsed into a single line.
-    ====================================================================== */
     function normalizeFlattenedMarkdownTables(text) {
       let value = String(text ?? "");
       if (!value.includes("|")) return value;
       value = value.replace(/\||\s+\|/g, "|\n|");
       value = value.replace(/([^|\n])\s+(\|[^|]+\|)/g, (match, pre, tableRow) => {
-        if ((tableRow.match(/\|/g) || []).length >= 2) {
-          return pre + "\n" + tableRow;
-        }
+        if ((tableRow.match(/\|/g) || []).length >= 2) return pre + "\n" + tableRow;
         return match;
       });
       value = value.replace(/(\|)\s+([A-Z][^|])/g, "$1\n$2");
@@ -259,24 +346,14 @@
       const out = [];
       let i = 0;
       while (i < lines.length) {
-        if (
-          i + 1 < lines.length &&
-          looksLikeMarkdownTableRow(lines[i]) &&
-          isMarkdownSeparatorRow(lines[i + 1])
-        ) {
+        if (i + 1 < lines.length && looksLikeMarkdownTableRow(lines[i]) && isMarkdownSeparatorRow(lines[i + 1])) {
           const header = lines[i];
           const separator = lines[i + 1];
           const body = [];
           i += 2;
-          while (i < lines.length && looksLikeMarkdownTableRow(lines[i])) {
-            body.push(lines[i]);
-            i += 1;
-          }
+          while (i < lines.length && looksLikeMarkdownTableRow(lines[i])) { body.push(lines[i]); i += 1; }
           out.push(renderMarkdownTable(header, separator, body));
-        } else {
-          out.push(lines[i]);
-          i += 1;
-        }
+        } else { out.push(lines[i]); i += 1; }
       }
       return out.join("\n");
     }
@@ -309,15 +386,9 @@
     }
 
     const MD_SELECTORS = [
-      ".message-text",
-      ".bot-message .text",
-      ".bot-message p",
-      ".response-text",
-      ".chat-message--bot .message",
-      "df-messenger-message p",
-      "chat-messenger-message p",
-      ".message p",
-      "p"
+      ".message-text", ".bot-message .text", ".bot-message p", ".response-text",
+      ".chat-message--bot .message", "df-messenger-message p", "chat-messenger-message p",
+      ".message p", "p"
     ];
     const MD_HAS_SYNTAX = /\*\*|__|\*[^*]|`|\|\s*:?-{3,}:?\s*\||\|\s+\|/;
 
@@ -329,17 +400,13 @@
         els.forEach(el => {
           const raw = el.innerText ?? el.textContent ?? "";
           if (MD_HAS_SYNTAX.test(raw)) {
-            console.log("ACN markdown raw:", JSON.stringify(raw));
             el.innerHTML = renderMarkdown(raw);
             el.setAttribute("data-md-done", "true");
           }
         });
         if (root.querySelectorAll(`${selector}[data-md-done]`).length > 0) break;
       }
-      const all = root.querySelectorAll("*");
-      all.forEach(el => {
-        if (el.shadowRoot) patchMarkdownInShadow(el.shadowRoot);
-      });
+      root.querySelectorAll("*").forEach(el => { if (el.shadowRoot) patchMarkdownInShadow(el.shadowRoot); });
     }
 
     function patchAllMarkdown() {
@@ -348,7 +415,6 @@
       patchMarkdownInShadow(messageList);
       if (messageList.shadowRoot) patchMarkdownInShadow(messageList.shadowRoot);
     }
-    /* ====================================================================== */
 
     function buildPaymentCarousel(payload) {
       const payments = payload.payments || [];
@@ -390,7 +456,7 @@
           <div class="acn-arrow-btn right-arrow" style="width:36px;height:36px;border-radius:50%;background:#fff;border:1px solid #d1d5db;box-shadow:-2px 0 8px rgba(0,0,0,0.1);cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1a56db;font-weight:bold;font-size:16px;padding-left:3px;pointer-events:auto;">❯</div>
         </div>` : "";
       return `
-        <div class="acn-widget-root ${wid}" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;width:100%;box-sizing:border-box;overflow:hidden;padding:5px 0;">
+        <div class="acn-widget-root ${wid}" style="width:100%;box-sizing:border-box;overflow:hidden;padding:5px 0;">
           <div style="font-size:15px;font-weight:600;color:#1a1a2e;margin-bottom:4px;">📅 ${escapeHtml(payload.title || "Upcoming scheduled payments")}</div>
           <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">${escapeHtml(payload.subtitle || "")}</div>
           <div style="position:relative;width:100%;">
@@ -422,7 +488,7 @@
           </div>`;
       }).join("");
       return `
-        <div class="acn-widget-root ${wid}" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;width:100%;box-sizing:border-box;">
+        <div class="acn-widget-root ${wid}" style="width:100%;box-sizing:border-box;">
           <div style="font-size:15px;font-weight:600;color:#1a1a2e;margin-bottom:4px;">💳 ${escapeHtml(payload.title || "Your Saved Payees")}</div>
           <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">${escapeHtml(payload.subtitle || "Select a payee to continue.")}</div>
           <div class="acn-list-track" style="border:1px solid #e0e4ea;border-radius:12px;overflow:hidden;">${rows}</div>
@@ -438,7 +504,7 @@
       const statusColor = status === "cancelled" ? "#9b1c1c" : "#2d6a2f";
       const statusBg = status === "cancelled" ? "#fde8e8" : "#e7f3e8";
       return `
-        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;width:100%;box-sizing:border-box;">
+        <div style="width:100%;box-sizing:border-box;">
           <div style="background:#fff;border:1px solid #e0e4ea;border-radius:16px;padding:20px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
             <div style="width:56px;height:56px;margin:0 auto 12px;border-radius:50%;background:#f4f6f9;border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:3px;">${iconHtml}</div>
             <div style="font-size:18px;font-weight:600;color:#1a1a2e;margin-bottom:4px;">${escapeHtml(payload.title || "Transaction Receipt")}</div>
@@ -488,14 +554,11 @@
         }
         textarea.focus();
         setNativeValue(textarea, text);
-        textarea.dispatchEvent(new InputEvent("input", {
-          bubbles: true, composed: true, inputType: "insertText", data: text
-        }));
+        textarea.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true, inputType: "insertText", data: text }));
         textarea.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
         setTimeout(() => {
           textarea.dispatchEvent(new KeyboardEvent("keydown", {
-            key: "Enter", code: "Enter", keyCode: 13, which: 13,
-            bubbles: true, composed: true
+            key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, composed: true
           }));
           const sendBtn =
             deepQuerySelector("button[aria-label='Send']") ||
@@ -608,23 +671,63 @@
     document.addEventListener("click", handleWidgetInteractions, true);
     document.addEventListener("touchend", handleWidgetInteractions, { passive: false, capture: true });
 
-    window.addEventListener("chat-messenger-loaded", () => {
-      const isVoiceHandoff = !!(kycRequestId && customerDocId);
+    function hideTitlebar() {
+      const chat = document.querySelector("chat-messenger");
+      if (!chat || !chat.shadowRoot) return false;
 
-      // <<<<====== CORRECCIÓN APLICADA AQUÍ ======>>>>
+      const chatChat =
+        chat.shadowRoot.querySelector("chat-messenger-chat") ||
+        chat.shadowRoot.querySelector("df-messenger-chat");
+      if (!chatChat || !chatChat.shadowRoot) return false;
+
+      const sr = chatChat.shadowRoot;
+      if (sr.querySelector("style[data-acn-tb]")) return true;
+
+      const s = document.createElement("style");
+      s.setAttribute("data-acn-tb", "1");
+      s.textContent = `
+        [part="titlebar"],
+        [part="header"],
+        .titlebar,
+        .chat-title-bar,
+        df-messenger-chat-title,
+        chat-messenger-title,
+        :host > div:first-child {
+          display: none !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          max-height: 0 !important;
+          overflow: hidden !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+      `;
+      sr.appendChild(s);
+      console.log("ACN: titlebar hidden in chatChat shadow root");
+      return true;
+    }
+
+    let _tbAttempts = 0;
+    const _tbInterval = setInterval(() => {
+      const done = hideTitlebar();
+      _tbAttempts++;
+      if (done || _tbAttempts >= 20) clearInterval(_tbInterval);
+    }, 500);
+
+    window.addEventListener("chat-messenger-loaded", () => {
+      hideTitlebar();
+      setTimeout(hideTitlebar, 200);
+      setTimeout(hideTitlebar, 600);
+      setTimeout(hideTitlebar, 1200);
+
       chatSdk.registerContext(
         chatSdk.prebuilts.ces.createContext({
           deploymentName: "projects/emvnzir-canada-song/locations/us/apps/27be6c70-74dc-4e50-a3e8-25b032e7c965/deployments/7cbb68f9-147f-4698-be02-e7ea5fa5d1a3",
-          tokenBroker: { enableTokenBroker: true, enableRecaptcha: false },
-          sessionParameters: { 
-            "is_voice_handoff": isVoiceHandoff
-          }
-        })
+          tokenBroker: { enableTokenBroker: true, enableRecaptcha: false }
+        }),
       );
 
       const chatEl = document.querySelector("chat-messenger");
-      const loadingScreen = document.getElementById("loadingScreen");
-
       chatEl.addEventListener("chat-messenger-response-received", (event) => {
         const outputs = event.detail?.raw?.outputs || [];
         outputs.forEach(output => {
@@ -634,17 +737,10 @@
             chunks.forEach(chunk => {
               const toolCall = chunk.toolCall;
               if (!toolCall) return;
-
-              // ── SANITIZER ────────────────────────────────────────────────
-              // Gemini Live encodes quotes as <ctrl46> in large-context turns.
-              // sanitizeLiveArgs normalizes the args before any render touches them.
               const cleanArgs = sanitizeLiveArgs(toolCall.args);
               const payload = cleanArgs?.payload;
-              // ─────────────────────────────────────────────────────────────
-
               if (!payload) return;
               const widgetName = payload.name || toolCall.displayName || toolCall.name || "";
-
               if (widgetName === "acn-payment-carousel") {
                 chatEl.renderCustomCard([{ type: "html", html: buildPaymentCarousel(payload) }]);
               } else if (widgetName === "acn-payee-selector") {
@@ -655,33 +751,72 @@
             });
           });
         });
-
         setTimeout(patchAllMarkdown, 250);
         setTimeout(patchAllMarkdown, 700);
         setTimeout(bindCarouselScrollListeners, 150);
         setTimeout(bindCarouselScrollListeners, 500);
       });
-
-      const showChatUI = () => {
-        if (chatEl) {
-          chatEl.style.display = "block";
-          if (typeof chatEl.openChat === "function") chatEl.openChat();
-          else if (typeof chatEl.expandChatWindow === "function") chatEl.expandChatWindow();
-          else chatEl.setAttribute("open", "true");
-        }
-        if (loadingScreen) loadingScreen.style.display = "none";
-      };
-
-      if (isVoiceHandoff) {
-        setTimeout(() => {
-          const kycPayload = `continue_kyc_upload:${kycRequestId}:${customerDocId}`;
-          showChatUI();
-          if (chatEl && typeof chatEl.sendQuery === "function") chatEl.sendQuery(kycPayload);
-        }, 1500);
-      } else {
-        showChatUI();
-      }
     });
   </script>
+  <chat-messenger url-allowlist="*">
+    <chat-messenger-container
+        chat-title="ACN Bank Assistant"
+        chat-title-icon="https://gstatic.com/dialogflow-console/common/assets/ccai-favicons/conversational_agents.png"
+        enable-file-upload
+        enable-audio-input
+    >
+      <chat-reset-session-button slot="titlebar-actions" title-text="Start new chat"></chat-reset-session-button>
+      <chat-toggle-dialog-button slot="titlebar-actions" title-text-expanded="Collapse" title-text-collapsed="Expand"></chat-toggle-dialog-button>
+      <chat-messenger-close-button slot="titlebar-actions" title-text="Close"></chat-messenger-close-button>
+    </chat-messenger-container>
+  </chat-messenger>
 </body>
 </html>
+''';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF140025),
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.smart_toy, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'ACN AI Assistant',
+              style: GoogleFonts.dmSans(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: _isWebViewReady
+          ? (kIsWeb
+              ? const HtmlElementView(viewType: 'acn-chat-iframe')
+              : WebViewWidget(controller: _webController))
+          : const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+    );
+  }
+}

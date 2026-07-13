@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>ACN Bank needs camera access to take photos for document upload and identity verification in the AI chat assistant.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ACN Bank needs access to your photo library to upload images for document submission and identity verification in the AI chat assistant.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

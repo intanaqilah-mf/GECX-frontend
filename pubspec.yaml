@@ -15,6 +15,9 @@ dependencies:
   intl: ^0.19.0
   webview_flutter: ^4.4.2
   webview_flutter_web: ^0.2.3
+  webview_flutter_android: ^3.0.0
+  webview_flutter_wkwebview: ^3.0.0
+  image_picker: ^1.1.0
   firebase_core: ^3.0.0
   firebase_messaging: ^15.0.0
   shared_preferences: ^2.2.0
