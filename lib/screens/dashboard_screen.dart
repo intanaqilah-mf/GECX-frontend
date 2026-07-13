@@ -105,14 +105,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       position: absolute !important;
       top: 0 !important; left: 0 !important;
       width: 100% !important; height: 100% !important;
-      --chat-messenger-color--primary: #1e40af;
-      --chat-messenger-color--primary-container: #1e40af;
+      --chat-messenger-color--primary: #A100FF;
+      --chat-messenger-color--primary-container: #7500C0;
       --chat-messenger-color--on-primary: #ffffff;
-      --chat-messenger-color--secondary: #7e22ce;
+      --chat-messenger-color--secondary: #7000BB;
       --chat-messenger-color--surface: #ffffff;
     }
     chat-messenger-container::part(titlebar) {
-      background: linear-gradient(to right, #0f172a, #1e40af, #7e22ce) !important;
+      background: linear-gradient(to right, #140025, #A100FF, #7500C0) !important;
     }
   </style>
   <script defer src="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/chat-messenger.js"></script>
@@ -247,14 +247,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: const LinearGradient(
-            colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0), Color(0xFF00D2FF)],
+            colors: [Color(0xFFA100FF), Color(0xFF7500C0), Color(0xFFD0B0F0)],
           ),
         ),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(19),
-            color: const Color(0xFF1a2744).withValues(alpha: 0.8),
+            color: AppColors.onSurface.withValues(alpha: 0.8),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -303,7 +303,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFF0f172a), Color(0xFF1e40af), Color(0xFF7e22ce)],
+                    colors: [AppColors.onSurface, AppColors.primary, AppColors.primaryContainer],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -379,7 +379,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   flexibleSpace: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFF0f172a), Color(0xFF1e40af), Color(0xFF7e22ce)],
+                        colors: [AppColors.onSurface, AppColors.primary, AppColors.primaryContainer],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -601,7 +601,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF001b3d), Color(0xFF115cb9)],
+            colors: [AppColors.onSurface, AppColors.secondary],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

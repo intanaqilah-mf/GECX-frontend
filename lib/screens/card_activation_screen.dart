@@ -237,7 +237,7 @@ class _CardActivationScreenState extends State<CardActivationScreen> {
               aspectRatio: 1.58,
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF001b3d),
+                  color: AppColors.primaryContainer,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(

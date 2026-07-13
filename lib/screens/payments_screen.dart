@@ -25,11 +25,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 
   static const _contacts = [
-    ('Sarah J.', Color(0xFF6B9BD2)),
-    ('Michael K.', Color(0xFF5B8DB8)),
-    ('Elena R.', Color(0xFF7A9EC5)),
-    ('David L.', Color(0xFF4A7BA8)),
-    ('Sophia M.', Color(0xFF8AAFD4)),
+    ('Sarah J.', Color(0xFFA100FF)),
+    ('Michael K.', Color(0xFF7500C0)),
+    ('Elena R.', Color(0xFF7000BB)),
+    ('David L.', Color(0xFF8E2DE2)),
+    ('Sophia M.', Color(0xFF6B4EC2)),
   ];
 
   @override
