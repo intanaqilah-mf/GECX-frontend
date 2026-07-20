@@ -18,7 +18,8 @@ android/app/google-services.json
 .externalNativeBuild
 .cxx
 local.properties
-# Backend
-/lib/backend/
 
 web/firebase-messaging-sw.js
+
+# Node
+node_modules/

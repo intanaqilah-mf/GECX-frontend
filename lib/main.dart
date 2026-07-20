@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -14,8 +15,20 @@ import 'screens/application_status_screen.dart';
 import 'models/banking_models.dart';
 import 'services/api_service.dart';
 
+class AppStartup {
+  static String? pendingCardId;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (kIsWeb) {
+    final match = RegExp(r'^/cards/([^/]+)/activate$').firstMatch(Uri.base.path);
+    if (match != null) {
+      AppStartup.pendingCardId = match.group(1);
+    }
+  }
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FcmService.initialize();
   runApp(const BankingApp());

@@ -4,6 +4,8 @@ import '../theme/app_colors.dart';
 import '../main.dart';
 import '../services/api_service.dart';
 import '../services/fcm_service.dart';
+import '../services/navigation_service.dart';
+import 'card_activation_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -48,6 +50,17 @@ class _LoginScreenState extends State<LoginScreen> {
           // Fire-and-forget registration via a non-async helper to avoid the
           // unawaited_futures lint; login should not block on this.
           _registerDeviceSilently(customerId);
+          final pendingCardId = AppStartup.pendingCardId;
+          if (pendingCardId != null) {
+            AppStartup.pendingCardId = null;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              navigatorKey.currentState?.push(
+                MaterialPageRoute(
+                  builder: (_) => CardActivationScreen(cardId: pendingCardId),
+                ),
+              );
+            });
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Customer ID not found in database.')),

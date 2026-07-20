@@ -7,22 +7,16 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 class ApiService {
-  // Automatically select the correct URL based on the platform
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    } else {
-      // Use the common Android emulator loopback if not on web
-      // In a real app, this would be a production URL.
-      return 'http://10.0.2.2:8000';
-    }
-  }
+  static String get baseUrl => kIsWeb
+      ? 'https://acn-customer-platform-gateway-663qhm0p.uc.gateway.dev'
+      : 'https://acn-customer-platform-gateway-663qhm0p.uc.gateway.dev';
 
   Future<HomeData> getHomeData(String customerId) async {
     final response = await http.get(Uri.parse('$baseUrl/customers/$customerId/home'));
     if (response.statusCode == 200) {
       return HomeData.fromJson(json.decode(response.body));
     } else {
+      print('[API] ${response.statusCode} ${response.request?.url} ${response.body}');
       throw Exception('Failed to load home data');
     }
   }
@@ -36,6 +30,7 @@ class ApiService {
       }
       throw Exception(data['message'] ?? 'Card not found');
     } else {
+      print('[API] ${response.statusCode} ${response.request?.url} ${response.body}');
       throw Exception('Failed to load card details');
     }
   }
@@ -45,6 +40,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
+      print('[API] ${response.statusCode} ${response.request?.url} ${response.body}');
       throw Exception('Failed to activate card');
     }
   }
@@ -55,6 +51,7 @@ class ApiService {
       final List<dynamic> data = json.decode(response.body);
       return data.map((item) => ActivityModel.fromJson(item)).toList();
     } else {
+      print('[API] ${response.statusCode} ${response.request?.url} ${response.body}');
       return []; // Return empty if failed or not implemented
     }
   }
@@ -65,6 +62,7 @@ class ApiService {
       final List<dynamic> data = json.decode(response.body);
       return List<Map<String, dynamic>>.from(data);
     } else {
+      print('[API] ${response.statusCode} ${response.request?.url} ${response.body}');
       return [];
     }
   }
@@ -75,6 +73,7 @@ class ApiService {
       final List<dynamic> data = json.decode(response.body);
       return List<Map<String, dynamic>>.from(data);
     } else {
+      print('[API] ${response.statusCode} ${response.request?.url} ${response.body}');
       return [];
     }
   }
@@ -85,6 +84,7 @@ class ApiService {
       final List<dynamic> data = json.decode(response.body);
       return List<Map<String, dynamic>>.from(data);
     } else {
+      print('[API] ${response.statusCode} ${response.request?.url} ${response.body}');
       return [];
     }
   }
@@ -103,6 +103,7 @@ class ApiService {
       }),
     );
     if (response.statusCode != 200) {
+      print('[API] ${response.statusCode} ${response.request?.url} ${response.body}');
       throw Exception('registerDevice failed: ${response.statusCode}');
     }
   }
