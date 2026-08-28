@@ -1,9 +1,19 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 
+/// Hosted Travel Store — opens in the system browser (or a new tab on web)
+/// with the freshly-activated cardId so the store can call the gateway's
+/// purchase endpoints against that card.
+const String _travelStoreBaseUrl = 'https://acn-travel-store-483471568825.web.app';
+
 class ActivationSuccessScreen extends StatefulWidget {
-  const ActivationSuccessScreen({super.key});
+  /// Card that was just activated. Forwarded to the Travel Store as a query
+  /// param so the store's first-purchase flow is scoped to this card.
+  final String? cardId;
+
+  const ActivationSuccessScreen({super.key, this.cardId});
 
   @override
   State<ActivationSuccessScreen> createState() => _ActivationSuccessScreenState();
@@ -26,6 +36,32 @@ class _ActivationSuccessScreenState extends State<ActivationSuccessScreen>
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  /// Hands off to the hosted Travel Store with the activated card's id so the
+  /// store can quote/purchase against it via the platform gateway. Uses
+  /// platformDefault so on web it becomes a normal tab navigation and on
+  /// mobile it opens the system browser — no in-app WebView chrome to fight.
+  Future<void> _openTravelStore() async {
+    final cardId = widget.cardId;
+    if (cardId == null || cardId.isEmpty) {
+      // Defensive: without a cardId the store can't scope the purchase.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Card ID unavailable — please try again from Cards.')),
+      );
+      return;
+    }
+
+    final uri = Uri.parse(_travelStoreBaseUrl).replace(
+      queryParameters: {'card_id': cardId},
+    );
+
+    final launched = await launchUrl(uri, mode: LaunchMode.platformDefault);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open Travel Store: $uri')),
+      );
+    }
   }
 
   @override
@@ -98,32 +134,46 @@ class _ActivationSuccessScreenState extends State<ActivationSuccessScreen>
             const SizedBox(height: 24),
             _buildWalletButtons(),
             const SizedBox(height: 32),
+            // ── Journey close-out: nudge the customer into their first
+            //    purchase in the Travel Store instead of dropping them back
+            //    on the dashboard. Rendered as the top CTA so it wins
+            //    attention over the dashboard/wallet fallbacks.
             SizedBox(
               width: double.infinity,
               height: 52,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
+              child: ElevatedButton.icon(
+                onPressed: _openTravelStore,
+                icon: const Icon(Icons.flight_takeoff, size: 18),
+                label: Text('Explore Travel Store',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: AppColors.secondary,
                   foregroundColor: Colors.white,
                   shape: const StadiumBorder(),
                 ),
-                child: Text('Go to Dashboard',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15)),
               ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Earn travel points on your first purchase.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.onSurfaceVariant,
+                  fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               height: 52,
               child: OutlinedButton(
-                onPressed: () {},
+                onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.secondary,
-                  side: const BorderSide(color: AppColors.secondary, width: 1.5),
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary, width: 1.5),
                   shape: const StadiumBorder(),
                 ),
-                child: Text('View Virtual Card',
+                child: Text('Go to Dashboard',
                     style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15)),
               ),
             ),

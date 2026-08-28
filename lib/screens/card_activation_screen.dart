@@ -24,7 +24,9 @@ class _CardActivationScreenState extends State<CardActivationScreen> {
       if (result['success'] == true) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const ActivationSuccessScreen()),
+          MaterialPageRoute(
+            builder: (_) => ActivationSuccessScreen(cardId: widget.cardId),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(

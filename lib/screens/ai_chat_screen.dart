@@ -11,6 +11,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/platform_utils.dart'
     if (dart.library.html) '../services/platform_utils_web.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../services/fcm_service.dart';
 import '../theme/app_colors.dart';
 
 List<Map<String, String>> _encodeCardImages(Map<String, Uint8List> byteMap) {
@@ -57,7 +59,11 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
     _webController = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000));
+      ..setBackgroundColor(const Color(0x00000000))
+      ..addJavaScriptChannel(
+        'ActivationBridge',
+        onMessageReceived: _onActivationBridgeMessage,
+      );
 
     if (defaultTargetPlatform == TargetPlatform.android) {
       final androidController = _webController.platform as AndroidWebViewController;
@@ -143,6 +149,22 @@ class _AiChatScreenState extends State<AiChatScreen> {
     await _webController.runJavaScript(
       'window.ACN_AVAILABLE_CARDS = $jsonCards; console.log("ACN Cards injected");',
     );
+  }
+
+  void _onActivationBridgeMessage(JavaScriptMessage message) {
+    try {
+      final data = jsonDecode(message.message) as Map<String, dynamic>;
+      final type = data['type'] as String? ?? '';
+      final value = data['value'] as String? ?? '';
+      if (type == 'deep_link') {
+        FcmService.navigateToActivation(value);
+      } else if (type == 'open_url') {
+        final uri = Uri.tryParse(value);
+        if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('ActivationBridge error: $e');
+    }
   }
 
   String _getChatHtml() {
@@ -404,6 +426,7 @@ function getItemIndexFromClass(el) {
 /* Mod C */
 function _processRunSession(data) {
   if (!data || !data.outputs) return;
+  disarmWelcomeWatchdog();
   removeTyping();
   data.outputs.forEach(function(output) {
     if (output.text) addBotBubble(output.text);
@@ -426,21 +449,55 @@ function _initGecx() {
     chatSdk.registerContext(
       chatSdk.prebuilts.ces.createContext({
         deploymentName: 'projects/483471568825/locations/us/apps/27be6c70-74dc-4e50-a3e8-25b032e7c965/deployments/7cbb68f9-147f-4698-be02-e7ea5fa5d1a3',
-        tokenBroker: {enableTokenBroker: true, enableRecaptcha: false}
+        tokenBroker: {enableTokenBroker: true, enableRecaptcha: false},
+        // Without this flag CES does NOT fire a runSession on registerContext,
+        // so _processRunSession() never runs and the typing indicator hangs
+        // forever. Web (acn-bank-demo) has this flag set — that's why it works.
+        enableWelcomeEvent: true
       })
     );
     console.log('[ACN] GECX registered');
   } catch(e) { console.error('[ACN] init error:', e); }
 }
 
+/* Safety net: if no runSession response arrives within N seconds, clear the
+   typing indicator with a fallback bubble instead of leaving the user staring
+   at animated dots. Covers SDK load failures, blocked origins, network hangs,
+   and anything else that would otherwise silently stall the UI. */
+var _welcomeWatchdog = null;
+function armWelcomeWatchdog() {
+  if (_welcomeWatchdog) clearTimeout(_welcomeWatchdog);
+  _welcomeWatchdog = setTimeout(function() {
+    if (document.getElementById('acn-typing-indicator')) {
+      removeTyping();
+      addBotBubble("Hi! I'm the ACN AI assistant. How can I help you today?");
+      console.warn('[ACN] welcome watchdog fired — no runSession response within timeout');
+    }
+  }, 15000);
+}
+function disarmWelcomeWatchdog() {
+  if (_welcomeWatchdog) { clearTimeout(_welcomeWatchdog); _welcomeWatchdog = null; }
+}
+
 if (window.chatSdk) {
   _initGecx();
   showTyping();
+  armWelcomeWatchdog();
 } else {
   window.addEventListener('chat-messenger-loaded', function() {
     _initGecx();
     showTyping();
+    armWelcomeWatchdog();
   });
+  // If the SDK script itself never loads (blocked/CSP/mixed-content), we still
+  // need to unstick the UI so the input remains usable.
+  setTimeout(function() {
+    if (!_gecxInitDone) {
+      removeTyping();
+      addBotBubble("Hi! I'm the ACN AI assistant. Ask me anything to get started.");
+      console.warn('[ACN] chat-messenger SDK never signalled ready');
+    }
+  }, 15000);
 }
 
 window._gecxSend = function(text) {
@@ -469,6 +526,13 @@ function _handlePayload(p) {
   }
   if (p.name === 'acn-payment-receipt') {
     var html = buildPaymentReceipt(p);
+    var d = document.createElement('div');
+    d.innerHTML = html;
+    _msgs.appendChild(d.firstChild);
+    scrollToBottom(); return;
+  }
+  if (p.name === 'acn-activation-card') {
+    var html = buildActivationCard(p);
     var d = document.createElement('div');
     d.innerHTML = html;
     _msgs.appendChild(d.firstChild);
@@ -671,6 +735,38 @@ function buildPaymentReceipt(payload) {
         <div style="font-size:11px;color:#9ca3af;">Thank you for using ACN Bank.</div>
       </div>
     </div>`;
+}
+
+function buildActivationCard(payload) {
+  if (!window._activationActions) window._activationActions = [];
+  var idx = window._activationActions.length;
+  window._activationActions.push(payload.action || {});
+  var icon = escapeHtml(payload.icon || '💳');
+  var title = escapeHtml(payload.title || '');
+  var message = escapeHtml(payload.message || '');
+  var ctaLabel = escapeHtml(payload.cta_label || 'Get Started');
+  return '<div style="background:#fff;border:1px solid #EDE5F8;border-top:3px solid #A100FF;border-radius:16px;padding:20px;max-width:98%;align-self:flex-start;box-sizing:border-box;">'
+    + '<div style="font-size:28px;margin-bottom:10px;">' + icon + '</div>'
+    + '<div style="font-size:16px;font-weight:700;color:#140025;margin-bottom:8px;">' + title + '</div>'
+    + '<div style="font-size:14px;color:#6E6E80;line-height:1.55;margin-bottom:16px;">' + message + '</div>'
+    + '<button onclick="activationCardClick(this,' + idx + ')"'
+    + ' style="width:100%;padding:12px;background:#A100FF;color:#fff;border:none;border-radius:10px;'
+    + 'font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s;">'
+    + ctaLabel + '</button>'
+    + '</div>';
+}
+
+function activationCardClick(btn, idx) {
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  btn.style.cursor = 'default';
+  var action = (window._activationActions || [])[idx] || {};
+  if (action.type === 'send_message') {
+    showTyping();
+    window._gecxSend(action.value || '');
+  } else {
+    window.ActivationBridge.postMessage(JSON.stringify({type: action.type || '', value: action.value || ''}));
+  }
 }
 
 function deepQuerySelector(selector, root = document) {
