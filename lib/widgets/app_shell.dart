@@ -6,6 +6,7 @@ import '../screens/apply_screen.dart';
 import '../screens/expenses_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/scan_screen.dart';
+import '../services/chat_overlay_controller.dart';
 import '../theme/app_colors.dart';
 
 /// Five-tab shell with a raised center Scan button — mirrors the reference
@@ -23,6 +24,15 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _index = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Hand the customer id to the persistent chat overlay so its bubble
+    // knows the user is signed in and can open a session without waiting
+    // for a Quick Action to seed it.
+    ChatOverlayController.instance.customerId = widget.customerId;
+  }
+
   // Each tab keeps its own state via IndexedStack (list-scroll positions, form
   // input, futures already loaded). Tabs that fetch on init won't refetch when
   // you flip away and back.
@@ -38,16 +48,30 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    // Wide screens (tablet / desktop / Flutter web) get a phone-shaped centered
+    // column with side padding so tiles don't stretch and the nav sits under
+    // the content, not across the whole browser. Phones (<480) go full-bleed.
+    final isWide = w > 520;
+    final maxWidth = isWide ? 460.0 : w;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      // Center Scan button is a real FAB (not a nav item) so it can float
-      // above the bar. The bar has a matching notch cut out for it.
-      floatingActionButton: _ScanFab(active: _index == 2, onTap: () => _go(2)),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      body: IndexedStack(index: _index, children: _tabs),
-      bottomNavigationBar: _AppBottomBar(
-        index: _index,
-        onTap: _go,
+      backgroundColor: isWide ? const Color(0xFFEDE5F8) : AppColors.background,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Scaffold(
+            backgroundColor: AppColors.background,
+            // Center Scan button is a real FAB (not a nav item) so it can float
+            // above the bar. The bar has a matching notch cut out for it.
+            floatingActionButton:
+                _ScanFab(active: _index == 2, onTap: () => _go(2)),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerDocked,
+            body: IndexedStack(index: _index, children: _tabs),
+            bottomNavigationBar: _AppBottomBar(index: _index, onTap: _go),
+          ),
+        ),
       ),
     );
   }

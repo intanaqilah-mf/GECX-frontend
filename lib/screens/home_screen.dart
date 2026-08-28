@@ -64,20 +64,29 @@ class _HomeScreenState extends State<HomeScreen> {
               _SectionHeader(title: 'Quick Actions', trailing: 'View All', onTap: () {}),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                sliver: SliverGrid.count(
-                  crossAxisCount: 4,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 6,
-                  childAspectRatio: 0.85,
-                  children: [
-                    ...kQuickActionsPrimary,
-                    ...kQuickActionsSecondary,
-                  ]
-                      .map((qa) => _QuickActionTile(
-                            action: qa,
-                            onTap: () => runQuickAction(qa, widget.customerId),
-                          ))
-                      .toList(),
+                // Fixed cell size instead of a flex-grid — keeps tiles the
+                // same physical size on every screen width, so on tablet /
+                // web the tiles don't balloon out.
+                sliver: SliverGrid(
+                  gridDelegate:
+                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 110, // ~4 across on a 440-wide column
+                    mainAxisExtent: 88,
+                    mainAxisSpacing: 6,
+                    crossAxisSpacing: 4,
+                  ),
+                  delegate: SliverChildListDelegate(
+                    [
+                      ...kQuickActionsPrimary,
+                      ...kQuickActionsSecondary,
+                    ]
+                        .map((qa) => _QuickActionTile(
+                              action: qa,
+                              onTap: () =>
+                                  runQuickAction(qa, widget.customerId),
+                            ))
+                        .toList(),
+                  ),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),

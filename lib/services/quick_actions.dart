@@ -67,9 +67,12 @@ const List<QuickAction> kQuickActionsSecondary = [
     icon: Icons.account_balance,
   ),
   QuickAction(
-    label: 'Transactions',
-    utterance: 'View transactions',
-    icon: Icons.receipt,
+    label: 'Pay a friend',
+    // Fund_Transfer_Agent accepts "@username" P2P utterances directly. The
+    // Home tile launches a small sheet that prompts for the handle, then
+    // fires "pay @{handle}" so the agent walks through amount + OTP.
+    utterance: 'pay @friend',
+    icon: Icons.person_add_alt_1,
   ),
   QuickAction(
     label: 'My Offers',

@@ -3,11 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/banking_models.dart';
 import '../services/api_service.dart';
-import '../services/quick_actions.dart';
 import '../theme/app_colors.dart';
 
-/// Accounts tab — card hero + full activity feed backed by
-/// `GET /cards/{id}/activity`.
+/// Accounts tab — card hero + Card Actions that mutate local UI state, not
+/// CES intents. `HomeData` gives us the card + the customer's real display
+/// name (used on the card artwork instead of the customerId).
 class AccountsScreen extends StatefulWidget {
   final String customerId;
   const AccountsScreen({super.key, required this.customerId});
@@ -19,6 +19,14 @@ class AccountsScreen extends StatefulWidget {
 class _AccountsScreenState extends State<AccountsScreen> {
   final _api = ApiService();
   late Future<HomeData> _home;
+
+  // ── Local card state ────────────────────────────────────────────────────
+  // Freeze: purely a visual state today — a real production hook would fire
+  // the Card_Management_Agent's block flow, but the ask is to make the card
+  // *look* frozen inline. Same idea for PIN: it toggles the mask, doesn't
+  // hit the backend.
+  bool _frozen = false;
+  bool _masked = true;
 
   @override
   void initState() {
@@ -42,12 +50,13 @@ class _AccountsScreenState extends State<AccountsScreen> {
           builder: (context, snap) {
             final data = snap.data;
             final card = data?.latestCard;
+            final holderName = data?.customer.displayName ?? 'Card Holder';
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               children: [
                 _title('My Accounts'),
                 const SizedBox(height: 12),
-                _cardHero(card),
+                _cardHero(card, holderName),
                 const SizedBox(height: 24),
                 _title('Card Actions'),
                 const SizedBox(height: 12),
@@ -75,59 +84,122 @@ class _AccountsScreenState extends State<AccountsScreen> {
             color: AppColors.onSurface),
       );
 
-  Widget _cardHero(CardModel? card) {
+  // ─── Card hero (freeze + mask aware) ──────────────────────────────────
+  Widget _cardHero(CardModel? card, String holderName) {
     if (card == null) return _empty('No cards linked yet.');
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFA100FF), Color(0xFF3B0064)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(card.cardType ?? 'Visa',
-              style: GoogleFonts.inter(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  letterSpacing: 1.5)),
-          const SizedBox(height: 6),
-          Text('ACN Bank',
-              style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800)),
-          const SizedBox(height: 28),
-          Text(card.cardNumber ?? '•••• •••• •••• ••••',
-              style: GoogleFonts.robotoMono(
-                  color: Colors.white,
-                  fontSize: 18,
-                  letterSpacing: 2)),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _kv('CARD HOLDER', card.cardHolderName ?? '—'),
+
+    final pan = card.cardNumber ?? '•••• •••• •••• ••••';
+    final expiry = card.expiryDate ?? '—';
+    final cvv = card.cvv;
+
+    // Mask is the default (card's sensitive info hidden). Tapping "PIN"
+    // reveals it and toggles again to re-mask.
+    final panDisplay = _masked ? _maskPan(pan) : pan;
+    final expiryDisplay = _masked ? '••/••' : expiry;
+    final cvvDisplay = _masked ? '•••' : cvv;
+
+    // Freeze overlay: desaturate the card and add a snowflake watermark so
+    // the "frozen" state is unmistakable.
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: _frozen
+                  ? const [Color(0xFF6D6A7A), Color(0xFF3E3B47)]
+                  : const [Color(0xFFA100FF), Color(0xFF3B0064)],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
-              Expanded(
-                child: _kv('EXPIRES', card.expiryDate ?? '—'),
-              ),
-              _kv('CVV', card.cvv, crossEnd: true),
             ],
           ),
-        ],
-      ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(card.cardType ?? 'Visa',
+                  style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      letterSpacing: 1.5)),
+              const SizedBox(height: 6),
+              Text('ACN Bank',
+                  style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(height: 28),
+              Text(panDisplay,
+                  style: GoogleFonts.robotoMono(
+                      color: Colors.white,
+                      fontSize: 18,
+                      letterSpacing: 2)),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(child: _kv('CARD HOLDER', holderName)),
+                  Expanded(child: _kv('EXPIRES', expiryDisplay)),
+                  _kv('CVV', cvvDisplay, crossEnd: true),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Frozen watermark — big snowflake, semi-transparent.
+        if (_frozen)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Cool blue tint over the card so it reads "frozen".
+                  Container(
+                    color: const Color(0xFF8CB8E8).withValues(alpha: 0.18),
+                  ),
+                  Opacity(
+                    opacity: 0.22,
+                    child: Icon(Icons.ac_unit,
+                        size: 140, color: Colors.white.withValues(alpha: 0.9)),
+                  ),
+                  // "FROZEN" ribbon at the top so a glance tells the story.
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.ac_unit,
+                              size: 12, color: Color(0xFF3E5F87)),
+                          const SizedBox(width: 4),
+                          Text('FROZEN',
+                              style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF3E5F87))),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -148,26 +220,52 @@ class _AccountsScreenState extends State<AccountsScreen> {
     );
   }
 
+  String _maskPan(String pan) {
+    final digits = pan.replaceAll(RegExp(r'\D'), '');
+    final last4 =
+        digits.length >= 4 ? digits.substring(digits.length - 4) : '••••';
+    return '•••• •••• •••• $last4';
+  }
+
+  // ─── Card actions row (local state only) ──────────────────────────────
   Widget _cardActions() {
-    final actions = <QuickAction>[
-      const QuickAction(
-          label: 'Freeze', utterance: 'Block my card', icon: Icons.ac_unit),
-      const QuickAction(
-          label: 'Unfreeze',
-          utterance: 'Unblock my card',
-          icon: Icons.lock_open),
-      const QuickAction(
-          label: 'PIN', utterance: 'Change my card PIN', icon: Icons.password),
-      const QuickAction(
-          label: 'Limit',
-          utterance: 'Show my daily transfer limit',
-          icon: Icons.speed),
+    final items = <_CardActionSpec>[
+      _CardActionSpec(
+        label: _frozen ? 'Frozen' : 'Freeze',
+        icon: Icons.ac_unit,
+        active: _frozen,
+        onTap: () => setState(() => _frozen = true),
+      ),
+      _CardActionSpec(
+        label: 'Unfreeze',
+        icon: Icons.lock_open,
+        // Purely UI-side counterpart to Freeze. Disabled visually when the
+        // card isn't frozen so the pairing reads clearly.
+        active: !_frozen,
+        onTap: () => setState(() => _frozen = false),
+      ),
+      _CardActionSpec(
+        label: _masked ? 'Show' : 'Hide',
+        icon: _masked ? Icons.visibility : Icons.visibility_off,
+        active: !_masked,
+        onTap: () => setState(() => _masked = !_masked),
+      ),
+      _CardActionSpec(
+        label: 'PIN',
+        icon: Icons.password,
+        // PIN is a separate mask toggle intentionally kept as an alias for
+        // Show/Hide to match the reference design's four-icon row.
+        active: !_masked,
+        onTap: () => setState(() => _masked = !_masked),
+      ),
     ];
+
     return Row(
-      children: actions
+      children: items
           .map((a) => Expanded(
                 child: InkWell(
-                  onTap: () => runQuickAction(a, widget.customerId),
+                  onTap: a.onTap,
+                  borderRadius: BorderRadius.circular(12),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(
@@ -176,11 +274,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: AppColors.secondaryContainer,
+                            color: a.active
+                                ? AppColors.primary
+                                : AppColors.secondaryContainer,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(a.icon,
-                              color: AppColors.primary, size: 22),
+                              color: a.active
+                                  ? Colors.white
+                                  : AppColors.primary,
+                              size: 22),
                         ),
                         const SizedBox(height: 6),
                         Text(a.label,
@@ -215,6 +318,19 @@ class _AccountsScreenState extends State<AccountsScreen> {
           ],
         ),
       );
+}
+
+class _CardActionSpec {
+  final String label;
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+  _CardActionSpec({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
 }
 
 class _ActivityList extends StatelessWidget {

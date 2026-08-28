@@ -32,7 +32,12 @@ class ChatOverlayController {
   final ValueNotifier<int> unread = ValueNotifier<int>(0);
 
   /// Signed-in customer id, propagated so the WebView can pass it to CES.
-  String? customerId;
+  /// Backed by a ValueNotifier so the overlay can rebuild when the shell
+  /// sets it on login (otherwise the persistent bubble wouldn't appear
+  /// until the user opened the chat once).
+  final ValueNotifier<String?> customerIdN = ValueNotifier<String?>(null);
+  String? get customerId => customerIdN.value;
+  set customerId(String? v) => customerIdN.value = v;
 
   /// Set by quick-action tiles: the utterance that should be sent to CES once
   /// the WebView is loaded. Consumed and cleared by [ChatOverlay] on flush.

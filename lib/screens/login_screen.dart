@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
 import '../services/api_service.dart';
+import '../services/biometric_auth_service.dart';
 import '../services/fcm_service.dart';
 import '../services/navigation_service.dart';
 import '../widgets/app_shell.dart';
@@ -15,10 +16,48 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _customerIdController = TextEditingController(text: '6oq3lBNGOFWfqOamn9ob');
+  final _customerIdController = TextEditingController(text: 'CUST_DOC_7777');
   bool _isLoading = false;
 
   final _apiService = ApiService();
+
+  // ── Biometric fast sign-in ───────────────────────────────────────────────
+  bool _biometricReady = false;   // has hardware + enrolled + a stored id
+  BiometricLabel _biometricLabel = BiometricLabel.generic;
+
+  @override
+  void initState() {
+    super.initState();
+    _probeBiometrics();
+  }
+
+  Future<void> _probeBiometrics() async {
+    final svc = BiometricAuthService.instance;
+    final available = await svc.isAvailable();
+    final remembered = await svc.rememberedCustomerId();
+    final label = await svc.preferredLabel();
+    if (!mounted) return;
+    setState(() {
+      _biometricReady = available && (remembered != null && remembered.isNotEmpty);
+      _biometricLabel = label;
+    });
+  }
+
+  Future<void> _biometricLogin() async {
+    setState(() => _isLoading = true);
+    final id = await BiometricAuthService.instance.authenticateAndGetCustomerId();
+    if (!mounted) return;
+    if (id == null || id.isEmpty) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Biometric sign-in cancelled.')),
+      );
+      return;
+    }
+    // Reuse the manual login path — same fetch + navigate.
+    _customerIdController.text = id;
+    _login();
+  }
 
   void _registerDeviceSilently(String customerId) {
     FcmService.setCustomerId(customerId);
@@ -51,6 +90,10 @@ class _LoginScreenState extends State<LoginScreen> {
           // Fire-and-forget registration via a non-async helper to avoid the
           // unawaited_futures lint; login should not block on this.
           _registerDeviceSilently(customerId);
+          // Remember for next launch so Face ID / Touch ID can sign back in
+          // without re-typing the customer id. Fire-and-forget.
+          // ignore: unawaited_futures
+          BiometricAuthService.instance.remember(customerId);
           final pendingCardId = AppStartup.pendingCardId;
           if (pendingCardId != null) {
             AppStartup.pendingCardId = null;
@@ -217,6 +260,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                           ),
                         ),
+                        if (_biometricReady) ...[
+                          const SizedBox(height: 16),
+                          _biometricDivider(),
+                          const SizedBox(height: 12),
+                          _biometricButton(),
+                        ],
                         const SizedBox(height: 20),
                         Center(
                           child: TextButton(
@@ -249,6 +298,59 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Biometric UI helpers ───────────────────────────────────────────────
+  Widget _biometricDivider() {
+    return Row(
+      children: [
+        Expanded(child: Container(height: 1, color: AppColors.outlineVariant)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text('or',
+              style: GoogleFonts.inter(
+                  color: AppColors.onSurfaceVariant, fontSize: 12)),
+        ),
+        Expanded(child: Container(height: 1, color: AppColors.outlineVariant)),
+      ],
+    );
+  }
+
+  Widget _biometricButton() {
+    late final IconData icon;
+    late final String label;
+    switch (_biometricLabel) {
+      case BiometricLabel.face:
+        icon = Icons.face_retouching_natural;
+        label = 'Sign in with Face ID';
+        break;
+      case BiometricLabel.fingerprint:
+        icon = Icons.fingerprint;
+        label = 'Sign in with Touch ID';
+        break;
+      case BiometricLabel.generic:
+        icon = Icons.lock_person;
+        label = 'Sign in with biometrics';
+        break;
+    }
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: OutlinedButton.icon(
+        onPressed: _isLoading ? null : _biometricLogin,
+        icon: Icon(icon, color: AppColors.primary),
+        label: Text(label,
+            style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary)),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: AppColors.primary, width: 1.5),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
       ),
     );
   }
