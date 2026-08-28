@@ -14,6 +14,7 @@ import 'screens/login_screen.dart';
 import 'screens/application_status_screen.dart';
 import 'models/banking_models.dart';
 import 'services/api_service.dart';
+import 'widgets/chat_overlay.dart';
 
 class AppStartup {
   static String? pendingCardId;
@@ -84,6 +85,16 @@ class BankingApp extends StatelessWidget {
       ),
       navigatorKey: navigatorKey,
       scaffoldMessengerKey: scaffoldMessengerKey,
+      // The chat overlay lives above every route so the WebView (and the CES
+      // session inside it) survives navigation and minimise / restore.
+      builder: (context, child) {
+        return Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            const ChatOverlay(),
+          ],
+        );
+      },
       home: const LoginScreen(),
     );
   }

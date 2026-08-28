@@ -5,6 +5,7 @@ import '../main.dart';
 import '../services/api_service.dart';
 import '../services/fcm_service.dart';
 import '../services/navigation_service.dart';
+import '../widgets/app_shell.dart';
 import 'card_activation_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -44,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (data.customer.found) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => MainShell(customerId: customerId),
+              builder: (context) => AppShell(customerId: customerId),
             ),
           );
           // Fire-and-forget registration via a non-async helper to avoid the

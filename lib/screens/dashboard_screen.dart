@@ -5,9 +5,9 @@ import '../theme/app_colors.dart';
 import '../models/banking_models.dart';
 import '../services/api_service.dart';
 import '../services/fcm_service.dart';
-import 'ai_chat_screen.dart';
 import 'card_activation_screen.dart';
 import '../main.dart';
+import '../services/chat_overlay_controller.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String customerId;
@@ -35,11 +35,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _openAiChat() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AiChatScreen(customerId: widget.customerId),
-      ),
-    );
+    // Uses the persistent overlay so minimising drops back to a bubble
+    // at bottom-right and re-opening keeps the same CES session.
+    ChatOverlayController.instance.open(widget.customerId);
   }
 
   Future<void> _requestNotificationsAndShowToken(BuildContext context) async {

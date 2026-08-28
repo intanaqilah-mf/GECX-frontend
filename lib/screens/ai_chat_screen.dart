@@ -82,7 +82,15 @@ class _AiChatScreenState extends State<AiChatScreen> {
           },
         ),
       );
-      _webController.loadHtmlString(_getChatHtml(), baseUrl: 'https://acnbank.ca');
+      // Load the DEPLOYED chat.html so mobile and web share one source of
+      // truth (TTS, buttons, suggestions, enableWelcomeEvent, everything).
+      // The ActivationBridge JS channel is added on _webController above,
+      // so it's exposed as window.ActivationBridge inside the loaded page.
+      // The origin the CES token broker sees is emvnzir-canada-song.web.app,
+      // which is already in the deployment's allowed-origins list.
+      _webController.loadRequest(
+        Uri.parse('https://emvnzir-canada-song.web.app/chat.html'),
+      );
     } else {
       final String origin = Uri.base.origin;
       final String path = origin.endsWith('/') ? 'chat.html' : '/chat.html';
@@ -167,6 +175,10 @@ class _AiChatScreenState extends State<AiChatScreen> {
     }
   }
 
+  // Kept for offline / air-gapped fallback. The live path now loads
+  // https://emvnzir-canada-song.web.app/chat.html so mobile shares the same
+  // TTS, buttons, suggestions, and CES config as the web build.
+  // ignore: unused_element
   String _getChatHtml() {
     return r'''
 <!DOCTYPE html>
