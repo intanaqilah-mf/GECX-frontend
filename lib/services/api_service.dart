@@ -35,6 +35,62 @@ class ApiService {
     }
   }
 
+  /// Advance an application's state machine. See the gateway's
+  /// `UpdateApplicationRequest` schema — every field is optional; only the
+  /// ones you pass get written. Returns the merged post-write document.
+  Future<Map<String, dynamic>> patchApplication(
+    String applicationId, {
+    String? status,
+    String? kycStatus,
+    String? creditCheckStatus,
+    String? fraudCheckStatus,
+    String? docsStatus,
+    String? decisionOutcome,
+    List<String>? decisionReasons,
+    int? currentStep,
+    String? detail,
+    String? sourceAgent = 'flutter_app',
+  }) async {
+    final body = <String, dynamic>{
+      if (status != null) 'status': status,
+      if (kycStatus != null) 'kyc_status': kycStatus,
+      if (creditCheckStatus != null) 'credit_check_status': creditCheckStatus,
+      if (fraudCheckStatus != null) 'fraud_check_status': fraudCheckStatus,
+      if (docsStatus != null) 'docs_status': docsStatus,
+      if (decisionOutcome != null) 'decision_outcome': decisionOutcome,
+      if (decisionReasons != null) 'decision_reasons': decisionReasons,
+      if (currentStep != null) 'current_step': currentStep,
+      if (detail != null) 'detail': detail,
+      if (sourceAgent != null) 'source_agent': sourceAgent,
+    };
+    final response = await http.patch(
+      Uri.parse('$baseUrl/applications/$applicationId'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body));
+    }
+    print('[API] ${response.statusCode} ${response.request?.url} ${response.body}');
+    throw Exception('patchApplication failed: ${response.statusCode}');
+  }
+
+  /// Marks the KYC step as `in_progress` and returns the merged application.
+  /// The real document bytes would be uploaded to a separate storage endpoint
+  /// (not yet implemented gateway-side); this call is what the timeline
+  /// listens on to advance step 2 immediately after the user picks a file.
+  Future<Map<String, dynamic>> submitApplicationDocument(
+    String applicationId, {
+    required String documentType,
+  }) async {
+    return patchApplication(
+      applicationId,
+      kycStatus: 'in_progress',
+      docsStatus: 'uploaded',
+      detail: 'Received $documentType. Verifying now.',
+    );
+  }
+
   Future<Map<String, dynamic>> activateCard(String cardId) async {
     final response = await http.post(Uri.parse('$baseUrl/cards/$cardId/activate'));
     if (response.statusCode == 200) {

@@ -92,6 +92,7 @@ class HomeData {
   final CardModel? latestCard;
   final Map<String, dynamic>? latestNotification;
   final List<Map<String, dynamic>> pendingActions;
+  final List<Map<String, dynamic>> preApprovedOffers;
   final Map<String, dynamic> summary;
 
   HomeData({
@@ -100,6 +101,7 @@ class HomeData {
     this.latestCard,
     this.latestNotification,
     required this.pendingActions,
+    this.preApprovedOffers = const [],
     required this.summary,
   });
 
@@ -110,6 +112,8 @@ class HomeData {
       latestCard: json['latest_card'] != null ? CardModel.fromJson(json['latest_card']) : null,
       latestNotification: json['latest_notification'],
       pendingActions: List<Map<String, dynamic>>.from(json['pending_actions'] ?? []),
+      preApprovedOffers:
+          List<Map<String, dynamic>>.from(json['pre_approved_offers'] ?? []),
       summary: Map<String, dynamic>.from(json['summary'] ?? {}),
     );
   }

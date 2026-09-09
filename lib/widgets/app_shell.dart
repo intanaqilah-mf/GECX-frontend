@@ -41,10 +41,16 @@ class _AppShellState extends State<AppShell> {
     AccountsScreen(customerId: widget.customerId),
     const ScanScreen(),
     ExpensesScreen(customerId: widget.customerId),
-    ApplyScreen(customerId: widget.customerId),
+    // Apply gets a callback so its timeline's "Go to Accounts" CTA (fired when
+    // the customer's latest application is approved) can flip this shell to the
+    // Accounts tab without pushing a new route on top of the shell.
+    ApplyScreen(customerId: widget.customerId, onGoToTab: _go),
   ];
 
-  void _go(int i) => setState(() => _index = i);
+  void _go(int i) {
+    if (!mounted) return;
+    setState(() => _index = i);
+  }
 
   @override
   Widget build(BuildContext context) {
