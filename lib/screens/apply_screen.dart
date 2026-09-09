@@ -136,7 +136,7 @@ class _ApplyScreenState extends State<ApplyScreen> {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFA100FF), Color(0xFF7500C0)],
+          colors: [Color(0xFF002147), Color(0xFF0056B3)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

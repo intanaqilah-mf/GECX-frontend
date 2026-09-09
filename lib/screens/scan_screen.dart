@@ -134,7 +134,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF140025),
+      color: const Color(0xFF0B1F33),
       child: SafeArea(
         child: Column(
           children: [

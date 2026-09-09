@@ -105,7 +105,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         title: 'Card',
                         subtitle: 'e-Payment',
                         icon: Icons.credit_card,
-                        badge: '69% OFF',
                         onTap: () => runQuickAction(
                           const QuickAction(
                               label: 'Cards',
@@ -142,7 +141,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         title: 'Credit',
                         subtitle: 'Score',
                         icon: Icons.trending_up,
-                        badge: '20% OFF',
                         onTap: () => runQuickAction(
                           const QuickAction(
                               label: 'Credit Score',
@@ -198,7 +196,7 @@ class _HeroCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFA100FF), Color(0xFF7500C0)],
+          colors: [Color(0xFF002147), Color(0xFF0056B3)],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(48),
@@ -468,14 +466,12 @@ class _FeaturedTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
-  final String? badge;
   final VoidCallback onTap;
   const _FeaturedTile({
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.onTap,
-    this.badge,
   });
 
   @override
@@ -489,39 +485,16 @@ class _FeaturedTile extends StatelessWidget {
           width: 128,
           child: Column(
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    height: 118,
-                    width: 128,
-                    decoration: BoxDecoration(
-                      color: AppColors.secondaryContainer,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.outlineVariant),
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(icon, color: AppColors.primary, size: 44),
-                  ),
-                  if (badge != null)
-                    Positioned(
-                      top: -6,
-                      left: -4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE21B24),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(badge!,
-                            style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800)),
-                      ),
-                    ),
-                ],
+              Container(
+                height: 118,
+                width: 128,
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryContainer,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.outlineVariant),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, color: AppColors.primary, size: 44),
               ),
               const SizedBox(height: 10),
               Text(title,

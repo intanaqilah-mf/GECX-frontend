@@ -56,7 +56,7 @@ class _AppShellState extends State<AppShell> {
     final maxWidth = isWide ? 460.0 : w;
 
     return Scaffold(
-      backgroundColor: isWide ? const Color(0xFFEDE5F8) : AppColors.background,
+      backgroundColor: isWide ? const Color(0xFFE1E6EB) : AppColors.background,
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
@@ -85,7 +85,7 @@ class _AppBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
-      color: const Color(0xFF140025),
+      color: const Color(0xFF002147),
       shape: const CircularNotchedRectangle(),
       notchMargin: 8,
       elevation: 12,
@@ -117,21 +117,35 @@ class _AppBottomBar extends StatelessWidget {
     String label,
   ) {
     final active = index == i;
-    final color = active ? AppColors.primary : Colors.white70;
+    // Bar background is navy (AppColors.primary), so the active state must
+    // stand out against it — pure white icon + label, plus a teal underline
+    // dot so the current tab is unambiguous at a glance.
+    final iconColor = active ? Colors.white : Colors.white54;
+    final labelColor = active ? Colors.white : Colors.white60;
     return Expanded(
       child: InkWell(
         onTap: () => onTap(i),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(active ? activeIcon : inactiveIcon, color: color, size: 22),
+            Icon(active ? activeIcon : inactiveIcon, color: iconColor, size: 22),
             const SizedBox(height: 2),
             Text(
               label,
               style: GoogleFonts.inter(
                 fontSize: 10.5,
-                color: color,
+                color: labelColor,
                 fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 3),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              height: 3,
+              width: active ? 18 : 0,
+              decoration: BoxDecoration(
+                color: AppColors.secondary, // Tertiary Teal #008080
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           ],

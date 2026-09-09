@@ -368,7 +368,7 @@ class _Header extends StatelessWidget {
               Text(
                 'ACN Bank AI',
                 style: GoogleFonts.dmSans(
-                  color: const Color(0xFF140025),
+                  color: const Color(0xFF002147),
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),
@@ -427,7 +427,7 @@ class _HeaderIcon extends StatelessWidget {
       radius: 22,
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: Icon(icon, color: const Color(0xFF6B5B8A), size: 18),
+        child: Icon(icon, color: const Color(0xFF66788A), size: 18),
       ),
     );
   }

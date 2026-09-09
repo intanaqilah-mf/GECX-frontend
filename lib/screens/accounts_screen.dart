@@ -109,7 +109,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
               end: Alignment.bottomRight,
               colors: _frozen
                   ? const [Color(0xFF6D6A7A), Color(0xFF3E3B47)]
-                  : const [Color(0xFFA100FF), Color(0xFF3B0064)],
+                  : const [Color(0xFF0056B3), Color(0xFF002147)],
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [

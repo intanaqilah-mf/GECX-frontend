@@ -21,7 +21,7 @@ class QuickAction {
     required this.label,
     required this.utterance,
     required this.icon,
-    this.background = const Color(0xFFF5EEFF),
+    this.background = const Color(0xFFE6F2F5),
     this.foreground = AppColors.primary,
     this.badgeColor,
     this.badgeText,
@@ -36,8 +36,6 @@ const List<QuickAction> kQuickActionsPrimary = [
     label: 'Pay Bills',
     utterance: 'Pay a bill',
     icon: Icons.receipt_long,
-    badgeColor: Color(0xFFE21B24),
-    badgeText: 'PROMO',
   ),
   QuickAction(
     label: 'Transfer',
@@ -53,8 +51,6 @@ const List<QuickAction> kQuickActionsPrimary = [
     label: 'Apply Card',
     utterance: 'Card recommendations',
     icon: Icons.add_card,
-    badgeColor: Color(0xFFE21B24),
-    badgeText: 'NEW',
   ),
 ];
 
@@ -78,8 +74,6 @@ const List<QuickAction> kQuickActionsSecondary = [
     label: 'My Offers',
     utterance: 'View my offers',
     icon: Icons.local_offer,
-    badgeColor: Color(0xFFE21B24),
-    badgeText: 'PROMO',
   ),
   QuickAction(
     label: 'Statements',
