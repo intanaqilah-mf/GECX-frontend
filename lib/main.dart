@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
+import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/api_service.dart';
@@ -28,22 +29,30 @@ class AppStartup {
   static String? pendingCustomerId;
 }
 
-/// Reads SSO / deep-link params from the current URL on Flutter Web. On native
-/// platforms this is a no-op — native SSO would use the `app_links` package
-/// with intent filters / associated domains, which is not wired up yet.
-void _captureWebDeepLink() {
-  if (!kIsWeb) return;
-
-  // Path-based deep link: /cards/<id>/activate — already used by the FCM push.
-  final pathMatch = RegExp(r'^/cards/([^/]+)/activate$').firstMatch(Uri.base.path);
+/// Shared parser: extracts card-id and customer-id from any activation URI,
+/// regardless of whether it came from the browser URL bar (web) or an Android
+/// intent / iOS universal link (native).
+///
+/// Accepted forms:
+///   /cards/<id>/activate?customer_id=X&sso=web   (path + query)
+///   gecxbanking://activate?card_id=X&customer_id=Y&sso=web   (scheme + query)
+void _parseActivationUri(Uri uri) {
+  // 1. Path-based card id: /cards/<id>/activate
+  final pathMatch = RegExp(r'^/cards/([^/]+)/activate$').firstMatch(uri.path);
   if (pathMatch != null) {
     AppStartup.pendingCardId = pathMatch.group(1);
   }
 
-  // Query-based SSO hand-off from the web experience. Requires BOTH the
-  // customer id AND the `sso=web` marker so a bare `?customer_id=` in a shared
-  // link can't silently bypass login.
-  final qp = Uri.base.queryParameters;
+  final qp = uri.queryParameters;
+
+  // 2. Query-based card id (scheme-style link): ?card_id=<id>
+  final qCardId = qp['card_id'];
+  if (qCardId != null && qCardId.trim().isNotEmpty) {
+    AppStartup.pendingCardId ??= qCardId.trim();
+  }
+
+  // 3. SSO hand-off — requires BOTH customer_id AND sso=web so a bare
+  //    ?customer_id= in a shared link can't silently bypass login.
   final sso = qp['sso'];
   final cid = qp['customer_id'];
   if (sso == 'web' && cid != null && cid.trim().isNotEmpty) {
@@ -51,10 +60,35 @@ void _captureWebDeepLink() {
   }
 }
 
+/// Reads SSO / deep-link params from the browser URL on Flutter Web.
+void _captureWebDeepLink() {
+  if (!kIsWeb) return;
+  _parseActivationUri(Uri.base);
+}
+
+/// Reads the launch URI on native platforms (Android intent filter /
+/// iOS universal link / custom URL scheme) via the `app_links` package.
+/// Must be called after [WidgetsFlutterBinding.ensureInitialized].
+Future<void> _captureNativeDeepLink() async {
+  if (kIsWeb) return; // web handled by _captureWebDeepLink
+  try {
+    final appLinks = AppLinks();
+    final uri = await appLinks.getInitialLink();
+    if (uri == null) return;
+    debugPrint('Native deep-link on launch: $uri');
+    _parseActivationUri(uri);
+  } catch (e) {
+    debugPrint('Native deep-link capture failed: $e');
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Capture activation params before the first frame so MaterialApp.home can
+  // fork correctly. Web reads Uri.base; native reads the launch intent / URL.
   _captureWebDeepLink();
+  await _captureNativeDeepLink();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FcmService.initialize();

@@ -192,11 +192,12 @@ class _ChatOverlayState extends State<ChatOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    // Rebuild whenever either mode OR customerId changes so the persistent
-    // bubble appears the moment the shell hands us an id after login.
+    // Rebuild whenever mode, customerId, OR suppressChatBubble changes so the
+    // bubble appears the moment the shell hands us an id after login, and hides
+    // the moment an activation screen sets the suppress flag.
     final ctrl = ChatOverlayController.instance;
     return ListenableBuilder(
-      listenable: Listenable.merge([ctrl.mode, ctrl.customerIdN]),
+      listenable: Listenable.merge([ctrl.mode, ctrl.customerIdN, ctrl.suppressChatBubble]),
       builder: (context, _) {
         final mode = ctrl.mode.value;
         final cid = ctrl.customerId;
@@ -206,6 +207,13 @@ class _ChatOverlayState extends State<ChatOverlay> {
         // if the panel isn't open we still render the bubble as a persistent
         // entry point at bottom-right — matches the web app's fc-fab.
         if (mode == ChatOverlayMode.hidden && !loggedIn) {
+          return const SizedBox.shrink();
+        }
+
+        // Activation-journey screens suppress the bubble so it doesn't float
+        // over the guided flow. An already-expanded panel is left untouched —
+        // the user explicitly opened it, so we honour that choice.
+        if (ctrl.suppressChatBubble.value && mode != ChatOverlayMode.expanded) {
           return const SizedBox.shrink();
         }
 

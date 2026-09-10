@@ -2,6 +2,7 @@
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
+import '../services/chat_overlay_controller.dart';
 
 /// Hosted Travel Store — opens in the system browser (or a new tab on web)
 /// with the freshly-activated cardId so the store can call the gateway's
@@ -30,10 +31,17 @@ class _ActivationSuccessScreenState extends State<ActivationSuccessScreen>
     _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 650));
     _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
     _ctrl.forward();
+    // Ref-counted suppress: this screen's hold is added before
+    // CardActivationScreen's dispose releases its hold, so the bubble
+    // stays hidden across the pushReplacement transition.
+    ChatOverlayController.instance.pushSuppressBubble();
   }
 
   @override
   void dispose() {
+    // Release this screen's suppress hold. The bubble reappears once the
+    // user reaches a screen that never called pushSuppressBubble (e.g. home).
+    ChatOverlayController.instance.popSuppressBubble();
     _ctrl.dispose();
     super.dispose();
   }

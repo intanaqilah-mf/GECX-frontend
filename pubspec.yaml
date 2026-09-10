@@ -21,6 +21,10 @@ dependencies:
   firebase_core: ^3.0.0
   firebase_messaging: ^15.0.0
   shared_preferences: ^2.2.0
+  url_launcher: ^6.3.0
+  mobile_scanner: ^5.2.3   # Scan tab — QR / barcode detection
+  local_auth: ^2.3.0       # Biometric (Face ID / Touch ID / fingerprint) login
+  app_links: ^6.0.0        # Native deep links (Android intent / iOS universal links)
 
 dev_dependencies:
   flutter_test:

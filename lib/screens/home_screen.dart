@@ -60,7 +60,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   loading: loading,
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              // Travel protection alert — tells the customer where coverage lives
+              // when the CES agent offers travel protection during a session.
+              const SliverToBoxAdapter(child: _TravelProtectionAlert()),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
               _SectionHeader(title: 'Quick Actions', trailing: 'View All', onTap: () {}),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -93,6 +97,33 @@ class _HomeScreenState extends State<HomeScreen> {
               // Dot indicator like the reference screenshot.
               const SliverToBoxAdapter(child: _DotIndicator(count: 2, active: 0)),
               const SliverToBoxAdapter(child: SizedBox(height: 20)),
+              // My Cards — hardcoded active cards so the customer can see what
+              // they hold without leaving Home (Card Activation screen hides it).
+              _SectionHeader(title: 'My Cards', trailing: 'View All', onTap: () {}),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 190,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    children: const [
+                      _ActiveCardTile(
+                        name: 'ACN Travel Rewards Visa',
+                        tier: 'Platinum',
+                        last4: '8842',
+                        gradient: [Color(0xFF0056B3), Color(0xFF002147)],
+                      ),
+                      _ActiveCardTile(
+                        name: 'ACN Infinite Travel Visa',
+                        tier: 'Infinite',
+                        last4: '4242',
+                        gradient: [Color(0xFF002147), Color(0xFF008080)],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
               _SectionHeader(title: 'Featured'),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -646,6 +677,242 @@ class _RecentActivitySliver extends StatelessWidget {
                     style: GoogleFonts.inter(
                         fontSize: 13, color: AppColors.onSurfaceVariant))),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Travel protection alert ───────────────────────────────────────────────
+// Info banner shown right below the Hero card so a customer who's been offered
+// travel protection by the CES agent knows where to find their coverage.
+class _TravelProtectionAlert extends StatelessWidget {
+  const _TravelProtectionAlert();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFE8F4FD), Color(0xFFEEF6FF)],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFB8D9F5)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.shield_outlined,
+                  color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Travel Protection Available',
+                        style: GoogleFonts.inter(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFB45309),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'OFFER',
+                          style: GoogleFonts.inter(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    "You've been offered travel medical coverage. "
+                    'Tap to review and activate.',
+                    style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        height: 1.4,
+                        color: const Color(0xFF3A5F80)),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right,
+                color: Color(0xFF3A5F80), size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Active card tile ──────────────────────────────────────────────────────
+// Hardcoded card visual used by the "My Cards" horizontal strip on Home.
+// Mirrors the accounts_screen.dart card hero styling (gradient + monospace PAN).
+class _ActiveCardTile extends StatelessWidget {
+  final String name;
+  final String tier;
+  final String last4;
+  final List<Color> gradient;
+
+  const _ActiveCardTile({
+    required this.name,
+    required this.tier,
+    required this.last4,
+    required this.gradient,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: SizedBox(
+        width: 260,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: gradient,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: gradient.last.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'ACN Bank',
+                    style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      tier.toUpperCase(),
+                      style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                width: 34,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7D794),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Text(
+                '••••  ••••  ••••  $last4',
+                style: GoogleFonts.robotoMono(
+                    color: Colors.white,
+                    fontSize: 14,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.w600),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF5EE39F),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Active',
+                              style: GoogleFonts.inter(
+                                  color: const Color(0xFF5EE39F),
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    'VISA',
+                    style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontStyle: FontStyle.italic,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

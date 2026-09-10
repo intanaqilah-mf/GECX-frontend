@@ -2,6 +2,7 @@
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../services/api_service.dart';
+import '../services/chat_overlay_controller.dart';
 import 'activation_success_screen.dart';
 
 class CardActivationScreen extends StatefulWidget {
@@ -15,6 +16,21 @@ class CardActivationScreen extends StatefulWidget {
 class _CardActivationScreenState extends State<CardActivationScreen> {
   final ApiService _apiService = ApiService();
   bool _activating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Hide the chat bubble for the duration of this screen. Uses a ref-counted
+    // push/pop so pushReplacement to ActivationSuccessScreen (which also
+    // suppresses) doesn't race — dispose runs after the new screen's initState.
+    ChatOverlayController.instance.pushSuppressBubble();
+  }
+
+  @override
+  void dispose() {
+    ChatOverlayController.instance.popSuppressBubble();
+    super.dispose();
+  }
 
   Future<void> _handleActivate() async {
     setState(() => _activating = true);
