@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class CustomerProfile {
   final String customerId;
   final String displayName;
@@ -117,6 +119,101 @@ class HomeData {
       summary: Map<String, dynamic>.from(json['summary'] ?? {}),
     );
   }
+}
+
+/// One EPP or mortgage draft/active loan.
+///
+/// Populated from the `loan_applications/{id}` Firestore document that the
+/// CES agent's `create_loan_application` tool writes at the end of the
+/// webchat flow. The `payloadSnapshot` string is the JSON-encoded draft the
+/// agent handed off — LoanReviewScreen parses it to render product/property
+/// details without needing to know either flow's shape statically.
+class LoanModel {
+  final String loanApplicationId;
+  final String loanKind; // 'epp' | 'mortgage'
+  final String status;   // draft | submitted | approved | active | cancelled | referred
+  final String verdict;  // pre_approved | needs_review | not_eligible
+  final bool isProvisional;
+  final double monthlyPaymentCad;
+  final double principalCad;
+  final String tenureLabel;
+  final double interestRatePct;
+  final String customerId;
+  final String? productName;
+  final String? productImageUrl;
+  final Map<String, dynamic> payloadSnapshot;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  LoanModel({
+    required this.loanApplicationId,
+    required this.loanKind,
+    required this.status,
+    this.verdict = '',
+    this.isProvisional = true,
+    this.monthlyPaymentCad = 0,
+    this.principalCad = 0,
+    this.tenureLabel = '',
+    this.interestRatePct = 0,
+    this.customerId = '',
+    this.productName,
+    this.productImageUrl,
+    this.payloadSnapshot = const {},
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  bool get isEpp => loanKind == 'epp';
+  bool get isMortgage => loanKind == 'mortgage';
+
+  factory LoanModel.fromJson(Map<String, dynamic> json) {
+    dynamic snapshot = json['payload_snapshot'];
+    Map<String, dynamic> snapMap = const {};
+    if (snapshot is String && snapshot.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(snapshot);
+        if (decoded is Map) {
+          snapMap = Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {}
+    } else if (snapshot is Map) {
+      snapMap = Map<String, dynamic>.from(snapshot);
+    }
+
+    // Pull product name/image from the EPP snapshot when available.
+    String? productName;
+    String? productImageUrl;
+    if (snapMap['epp'] is Map) {
+      final epp = Map<String, dynamic>.from(snapMap['epp']);
+      productName = epp['product_name'] as String?;
+      productImageUrl = epp['product_image_url'] as String?;
+    }
+
+    return LoanModel(
+      loanApplicationId: (json['loan_application_id'] ?? '') as String,
+      loanKind: ((json['loan_kind'] ?? '') as String).toLowerCase(),
+      status: ((json['status'] ?? 'draft') as String).toLowerCase(),
+      verdict: (json['verdict'] ?? '') as String,
+      isProvisional: json['is_provisional'] == true,
+      monthlyPaymentCad: (json['monthly_payment_cad'] ?? 0).toDouble(),
+      principalCad: (json['principal_cad'] ?? 0).toDouble(),
+      tenureLabel: (json['tenure_label'] ?? '') as String,
+      interestRatePct: (json['interest_rate_pct'] ?? 0).toDouble(),
+      customerId: (json['customer_id'] ?? '') as String,
+      productName: productName,
+      productImageUrl: productImageUrl,
+      payloadSnapshot: snapMap,
+      createdAt: _parseIso(json['created_at']),
+      updatedAt: _parseIso(json['updated_at']),
+    );
+  }
+}
+
+DateTime? _parseIso(dynamic value) {
+  if (value is String && value.isNotEmpty) {
+    return DateTime.tryParse(value);
+  }
+  return null;
 }
 
 class ActivityModel {

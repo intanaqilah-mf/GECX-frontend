@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:intl/intl.dart';
+
 import '../models/banking_models.dart';
 import '../services/api_service.dart';
+import '../services/loans_service.dart';
 import '../services/quick_actions.dart';
 import '../theme/app_colors.dart';
 
@@ -65,6 +68,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         color: AppColors.onSurfaceVariant, fontSize: 13)),
                 const SizedBox(height: 20),
                 _totalCard(state),
+                const SizedBox(height: 20),
+                _ActiveFinancingSection(customerId: widget.customerId),
                 const SizedBox(height: 20),
                 _byCategoryCard(state),
                 const SizedBox(height: 20),
@@ -273,5 +278,123 @@ class _ExpensesState {
     final sorted = Map.fromEntries(buckets.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value)));
     return _ExpensesState(total: total, count: acts.length, byCategory: sorted);
+  }
+}
+
+
+/// Active Financing — EPP + mortgage rows with quick pay actions.
+/// Sits on the Expenses tab so the customer sees monthly commitments alongside
+/// their spending.
+class _ActiveFinancingSection extends StatefulWidget {
+  final String customerId;
+  const _ActiveFinancingSection({required this.customerId});
+
+  @override
+  State<_ActiveFinancingSection> createState() => _ActiveFinancingSectionState();
+}
+
+class _ActiveFinancingSectionState extends State<_ActiveFinancingSection> {
+  final _cad = NumberFormat.currency(locale: 'en_CA', symbol: 'CAD ', decimalDigits: 2);
+  Future<List<LoanModel>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = LoansService.instance.fetchLoansFor(widget.customerId);
+  }
+
+  Future<void> _pay(LoanModel loan) async {
+    await LoansService.instance.payInstalment(loan.loanApplicationId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Instalment paid for ${loan.productName ?? loan.loanApplicationId}')),
+    );
+    setState(() => _future = LoansService.instance.fetchLoansFor(widget.customerId));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<LoanModel>>(
+      future: _future,
+      builder: (context, snap) {
+        final loans = snap.data ?? const <LoanModel>[];
+        if (loans.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(children: [
+                Text('Active Financing',
+                    style: GoogleFonts.inter(
+                        fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.onSurface)),
+                const Spacer(),
+                Text('${loans.length} active',
+                    style: GoogleFonts.inter(
+                        fontSize: 11.5, color: AppColors.onSurfaceVariant)),
+              ]),
+              const SizedBox(height: 12),
+              for (var i = 0; i < loans.length; i++) ...[
+                _row(loans[i]),
+                if (i < loans.length - 1) const Divider(height: 20),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _row(LoanModel loan) {
+    final isEpp = loan.isEpp;
+    return Row(children: [
+      Container(
+        width: 44, height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.primaryContainer,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: loan.productImageUrl != null && loan.productImageUrl!.isNotEmpty
+            ? Image.network(loan.productImageUrl!, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    Icon(isEpp ? Icons.devices_other : Icons.home_outlined,
+                        size: 20, color: AppColors.primary))
+            : Icon(isEpp ? Icons.devices_other : Icons.home_outlined,
+                size: 20, color: AppColors.primary),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(loan.productName ?? (isEpp ? 'Easy Payment Plan' : 'Home mortgage'),
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                    fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+            const SizedBox(height: 2),
+            Text('${_cad.format(loan.monthlyPaymentCad)} / mo · ${loan.tenureLabel}',
+                style: GoogleFonts.inter(
+                    fontSize: 11.5, color: AppColors.onSurfaceVariant)),
+          ],
+        ),
+      ),
+      const SizedBox(width: 8),
+      TextButton(
+        onPressed: () => _pay(loan),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          foregroundColor: AppColors.primary,
+        ),
+        child: Text('Pay',
+            style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w700)),
+      ),
+    ]);
   }
 }

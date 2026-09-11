@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/banking_models.dart';
 import '../services/api_service.dart';
 import '../services/application_events.dart';
+import '../services/chat_overlay_controller.dart';
+import '../services/loans_service.dart';
 import '../services/quick_actions.dart';
 import '../theme/app_colors.dart';
 import 'card_activation_screen.dart';
@@ -204,6 +206,8 @@ class _ApplyScreenState extends State<ApplyScreen> {
                 if (latestApp != null) _applicationCard(latestApp),
                 if (latestApp != null) const SizedBox(height: 20),
                 _heroCta(),
+                const SizedBox(height: 24),
+                _LoansStrip(customerId: widget.customerId),
                 const SizedBox(height: 24),
                 Text('Our credit cards',
                     style: GoogleFonts.inter(
@@ -1367,4 +1371,109 @@ class _Product {
     required this.fee,
     required this.welcome,
   });
+}
+
+
+/// "My Loans" strip on the Apply tab.
+/// Two aspirational tiles (EPP + Mortgage) that open the chat overlay with a
+/// scripted utterance, plus an optional summary chip for each active loan.
+class _LoansStrip extends StatefulWidget {
+  final String customerId;
+  const _LoansStrip({required this.customerId});
+
+  @override
+  State<_LoansStrip> createState() => _LoansStripState();
+}
+
+class _LoansStripState extends State<_LoansStrip> {
+  Future<List<LoanModel>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = LoansService.instance.fetchLoansFor(widget.customerId);
+  }
+
+  void _openChat(String utterance) {
+    ChatOverlayController.instance.open(widget.customerId);
+    ChatOverlayController.instance.pendingUtterance = utterance;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<LoanModel>>(
+      future: _future,
+      builder: (context, snap) {
+        final loans = snap.data ?? const <LoanModel>[];
+        final activeCount = loans.length;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              Text('Loans',
+                  style: GoogleFonts.inter(
+                      fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onSurface)),
+              const SizedBox(width: 8),
+              if (activeCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text('$activeCount active',
+                      style: GoogleFonts.inter(
+                          fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                ),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: _tile(
+                icon: Icons.phone_iphone,
+                title: 'Easy Payment Plan',
+                body: 'Split a gadget across 6, 12, or 24 months.',
+                utterance: 'I want to buy something on Easy Payment Plan',
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: _tile(
+                icon: Icons.home_outlined,
+                title: 'Mortgage estimate',
+                body: 'Get a provisional pre-approval in seconds.',
+                utterance: 'I want a mortgage pre-approval estimate',
+              )),
+            ]),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _tile({required IconData icon, required String title, required String body, required String utterance}) {
+    return InkWell(
+      onTap: () => _openChat(utterance),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.outlineVariant),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.primary, size: 22),
+            const SizedBox(height: 10),
+            Text(title,
+                style: GoogleFonts.inter(
+                    fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.onSurface)),
+            const SizedBox(height: 4),
+            Text(body,
+                style: GoogleFonts.inter(
+                    fontSize: 11.5, color: AppColors.onSurfaceVariant, height: 1.35)),
+          ],
+        ),
+      ),
+    );
+  }
 }

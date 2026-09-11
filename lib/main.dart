@@ -11,6 +11,7 @@ import 'services/navigation_service.dart';
 import 'theme/app_colors.dart';
 import 'screens/login_screen.dart';
 import 'screens/card_activation_screen.dart';
+import 'screens/loan_review_screen.dart';
 import 'widgets/app_shell.dart';
 import 'widgets/chat_overlay.dart';
 
@@ -27,6 +28,17 @@ class AppStartup {
   /// web app sets when the user was already signed in there — see
   /// `acn-bank-demo/src/components/CardActivationWidget.jsx`).
   static String? pendingCustomerId;
+
+  /// Loan application id parsed from a `?loan_draft=LOAN_…` query string.
+  /// Written by the CES `acn-mobile-handoff` widget at the end of an EPP or
+  /// mortgage webchat flow. When present, the app pushes LoanReviewScreen
+  /// on top of AppShell after the SSO bootstrap succeeds.
+  static String? pendingLoanDraftId;
+
+  /// Short-lived opaque token that accompanies pendingLoanDraftId. The app
+  /// forwards it to the loans backend when fetching the draft so a leaked
+  /// URL alone can't read someone else's draft.
+  static String? pendingLoanHandoffToken;
 }
 
 /// Shared parser: extracts card-id and customer-id from any activation URI,
@@ -57,6 +69,18 @@ void _parseActivationUri(Uri uri) {
   final cid = qp['customer_id'];
   if (sso == 'web' && cid != null && cid.trim().isNotEmpty) {
     AppStartup.pendingCustomerId = cid.trim();
+  }
+
+  // 4. Loan draft hand-off from the webchat `acn-mobile-handoff` widget.
+  //    We accept it only when the URL is also an SSO hand-off so it inherits
+  //    the same trust checks. A bare loan_draft= without sso=web is ignored.
+  final loanDraft = qp['loan_draft'];
+  if (loanDraft != null && loanDraft.trim().isNotEmpty && sso == 'web') {
+    AppStartup.pendingLoanDraftId = loanDraft.trim();
+    final token = qp['handoff_token'];
+    if (token != null && token.trim().isNotEmpty) {
+      AppStartup.pendingLoanHandoffToken = token.trim();
+    }
   }
 }
 
@@ -190,6 +214,8 @@ class _SsoBootstrapState extends State<_SsoBootstrap> {
   Future<void> _resolve() async {
     final api = ApiService();
     final pendingCardId = AppStartup.pendingCardId;
+    final pendingLoanDraftId = AppStartup.pendingLoanDraftId;
+    final pendingLoanHandoffToken = AppStartup.pendingLoanHandoffToken;
     try {
       final data = await api.getHomeData(widget.customerId);
       if (!mounted) return;
@@ -225,6 +251,21 @@ class _SsoBootstrapState extends State<_SsoBootstrap> {
           navigatorKey.currentState?.push(
             MaterialPageRoute(
               builder: (_) => CardActivationScreen(cardId: pendingCardId),
+            ),
+          );
+        });
+      }
+
+      if (pendingLoanDraftId != null) {
+        AppStartup.pendingLoanDraftId = null;
+        AppStartup.pendingLoanHandoffToken = null;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => LoanReviewScreen(
+                loanApplicationId: pendingLoanDraftId,
+                handoffToken: pendingLoanHandoffToken,
+              ),
             ),
           );
         });
