@@ -8,6 +8,10 @@ class CustomerProfile {
   final bool found;
   final bool hasCard;
   final CardModel? cardInfo;
+  /// ACN QR Pay opt-in flag. Defaults to true when the field is absent from
+  /// the /home payload so the demo works even before seedQrFields.mjs has
+  /// run. Set qr_enabled: false on the customer doc to hide MyQr entirely.
+  final bool qrEnabled;
 
   CustomerProfile({
     required this.customerId,
@@ -17,6 +21,7 @@ class CustomerProfile {
     required this.found,
     this.hasCard = false,
     this.cardInfo,
+    this.qrEnabled = true,
   });
 
   factory CustomerProfile.fromJson(Map<String, dynamic> json) {
@@ -28,6 +33,8 @@ class CustomerProfile {
       found: json['found'] ?? false,
       hasCard: json['has_card'] ?? false,
       cardInfo: json['card_info'] != null ? CardModel.fromJson(json['card_info']) : null,
+      // Explicit false hides QR; anything else (true, null, missing) enables.
+      qrEnabled: json['qr_enabled'] != false,
     );
   }
 }

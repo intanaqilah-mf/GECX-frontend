@@ -36,10 +36,14 @@ class _AppShellState extends State<AppShell> {
   // Each tab keeps its own state via IndexedStack (list-scroll positions, form
   // input, futures already loaded). Tabs that fetch on init won't refetch when
   // you flip away and back.
-  late final List<Widget> _tabs = <Widget>[
+  //
+  // ScanScreen is the exception: it needs the current-tab signal so its camera
+  // controller only spins when the tab is actually being viewed. We rebuild
+  // the tabs list on each build below so `isVisible` reflects `_index`.
+  List<Widget> _buildTabs() => <Widget>[
     HomeScreen(customerId: widget.customerId),
     AccountsScreen(customerId: widget.customerId),
-    const ScanScreen(),
+    ScanScreen(customerId: widget.customerId, isVisible: _index == 2),
     ExpensesScreen(customerId: widget.customerId),
     // Apply gets a callback so its timeline's "Go to Accounts" CTA (fired when
     // the customer's latest application is approved) can flip this shell to the
@@ -74,7 +78,7 @@ class _AppShellState extends State<AppShell> {
                 _ScanFab(active: _index == 2, onTap: () => _go(2)),
             floatingActionButtonLocation:
                 FloatingActionButtonLocation.centerDocked,
-            body: IndexedStack(index: _index, children: _tabs),
+            body: IndexedStack(index: _index, children: _buildTabs()),
             bottomNavigationBar: _AppBottomBar(index: _index, onTap: _go),
           ),
         ),

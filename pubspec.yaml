@@ -20,11 +20,16 @@ dependencies:
   image_picker: ^1.1.0
   firebase_core: ^3.0.0
   firebase_messaging: ^15.0.0
+  firebase_auth: ^5.0.0       # anon auth needed by Firestore rules on writes
+  cloud_firestore: ^5.0.0     # QR Pay writes debit + credit directly
   shared_preferences: ^2.2.0
   url_launcher: ^6.3.0
   mobile_scanner: ^5.2.3   # Scan tab — QR / barcode detection
   local_auth: ^2.3.0       # Biometric (Face ID / Touch ID / fingerprint) login
   app_links: ^6.0.0        # Native deep links (Android intent / iOS universal links)
+  qr_flutter: ^4.1.0       # "My QR" screen — renders the payer-scannable code
+  zxing2: ^0.2.3           # Pure-Dart QR decoder for gallery pick (web-safe)
+  image: ^4.1.7            # Decode picked-image bytes for the zxing2 scanner
 
 dev_dependencies:
   flutter_test:

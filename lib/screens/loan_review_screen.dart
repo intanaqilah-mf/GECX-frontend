@@ -148,6 +148,14 @@ class _LoanReviewScreenState extends State<LoanReviewScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Journey timeline — grounds the customer in where they are in the
+          // arc so the screen never feels like a dead-end static form. The
+          // three earlier steps happened on web and are marked done; "Review
+          // & sign" is the current step; the two after are what still needs
+          // to happen. Copy is intentionally outcome-focused.
+          _JourneyTimeline(currentIndex: 3, isEpp: loan.isEpp),
+          const SizedBox(height: 18),
+
           // Kind pill + verdict banner
           Row(children: [
             Container(
@@ -253,6 +261,36 @@ class _LoanReviewScreenState extends State<LoanReviewScreen> {
             onPressed: _submitting ? null : () => _cancel(loan),
             child: Text('Cancel this ${isEpp ? 'plan' : 'application'}',
                 style: GoogleFonts.inter(fontSize: 13.5, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(height: 16),
+
+          // What happens after they tap Activate. Makes the flow feel like
+          // a continuing journey, not an isolated one-shot form.
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.outlineVariant),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, size: 16, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isEpp
+                        ? 'After you activate, your first payment schedules for next month and you can manage it under Expenses → Active Financing.'
+                        : 'After you confirm, an ACN Bank mortgage advisor will call you within 1 business day to finish the assessment.',
+                    style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.onSurfaceVariant,
+                        height: 1.4),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -364,6 +402,129 @@ class _LoanReviewScreenState extends State<LoanReviewScreen> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Horizontal 6-step progress timeline shown at the top of [LoanReviewScreen].
+///
+/// [currentIndex] is the index of the "you are here" step (0-based). Steps
+/// before it are drawn as completed (filled blue circle + check icon); the
+/// current step is drawn as an active pill (larger, filled); steps after
+/// are drawn as pending (hollow outline + muted label).
+///
+/// Reads as the arc:
+///   ✓ Picked → ✓ Plan → ✓ Pre-approved → ● REVIEW & SIGN → ○ Auto-pay → ○ First payment
+class _JourneyTimeline extends StatelessWidget {
+  final int currentIndex;
+  final bool isEpp;
+
+  const _JourneyTimeline({required this.currentIndex, required this.isEpp});
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = isEpp
+        ? const ['Picked', 'Plan', 'Pre-approved', 'Review & sign', 'Auto-pay', 'First month']
+        : const ['Details', 'Calculator', 'KYC', 'Review & sign', 'Advisor', 'Funded'];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < steps.length; i++)
+            Expanded(child: _stepCell(steps[i], i, isLast: i == steps.length - 1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepCell(String label, int index, {required bool isLast}) {
+    final bool done = index < currentIndex;
+    final bool active = index == currentIndex;
+    final Color nodeColor = done || active
+        ? AppColors.primary
+        : AppColors.outlineVariant;
+    final Color labelColor = active
+        ? AppColors.primary
+        : done
+            ? AppColors.onSurface
+            : AppColors.onSurfaceVariant;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Column(
+          children: [
+            Container(
+              width: active ? 22 : 16,
+              height: active ? 22 : 16,
+              decoration: BoxDecoration(
+                color: done
+                    ? AppColors.primary
+                    : active
+                        ? AppColors.primary
+                        : Colors.transparent,
+                shape: BoxShape.circle,
+                border: Border.all(color: nodeColor, width: active ? 2 : 1.5),
+                boxShadow: active
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        )
+                      ]
+                    : null,
+              ),
+              alignment: Alignment.center,
+              child: done
+                  ? const Icon(Icons.check, size: 10, color: Colors.white)
+                  : active
+                      ? Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                              color: Colors.white, shape: BoxShape.circle),
+                        )
+                      : null,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 9.5,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                color: labelColor,
+                height: 1.2,
+              ),
+            ),
+          ],
+        ),
+        // Connector line to next step
+        if (!isLast)
+          Positioned(
+            top: active ? 10 : 7,
+            left: null,
+            right: 0,
+            child: FractionalTranslation(
+              translation: const Offset(0.5, 0),
+              child: Container(
+                width: 40,
+                height: 1.5,
+                color: done ? AppColors.primary : AppColors.outlineVariant,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

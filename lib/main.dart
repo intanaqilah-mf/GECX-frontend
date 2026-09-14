@@ -39,6 +39,13 @@ class AppStartup {
   /// forwards it to the loans backend when fetching the draft so a leaked
   /// URL alone can't read someone else's draft.
   static String? pendingLoanHandoffToken;
+
+  /// Flat snapshot fields parsed from the handoff URL query string
+  /// (kind, product, monthly, principal, tenure, rate, verdict, img).
+  /// Populated by _parseActivationUri and consumed by LoansService.fetchLoan
+  /// so LoanReviewScreen can render the RIGHT loan (matching the webchat
+  /// journey) even when the backend Firestore read hasn't been wired yet.
+  static Map<String, String>? pendingLoanSnapshot;
 }
 
 /// Shared parser: extracts card-id and customer-id from any activation URI,
@@ -81,6 +88,19 @@ void _parseActivationUri(Uri uri) {
     if (token != null && token.trim().isNotEmpty) {
       AppStartup.pendingLoanHandoffToken = token.trim();
     }
+
+    // Pull the flat snapshot fields the CES tool encoded alongside the
+    // loan_draft id. Keeping them as strings here — LoansService parses
+    // to numbers when building the LoanModel. Only capture keys we
+    // actually use so junk params don't leak in.
+    const snapKeys = ['kind', 'product', 'monthly', 'principal',
+                       'tenure', 'rate', 'verdict', 'img'];
+    final snap = <String, String>{};
+    for (final k in snapKeys) {
+      final v = qp[k];
+      if (v != null && v.trim().isNotEmpty) snap[k] = v.trim();
+    }
+    if (snap.isNotEmpty) AppStartup.pendingLoanSnapshot = snap;
   }
 }
 

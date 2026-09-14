@@ -8,6 +8,7 @@ import '../services/fcm_service.dart';
 import '../services/navigation_service.dart';
 import '../widgets/app_shell.dart';
 import 'card_activation_screen.dart';
+import 'loan_review_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -101,6 +102,29 @@ class _LoginScreenState extends State<LoginScreen> {
               navigatorKey.currentState?.push(
                 MaterialPageRoute(
                   builder: (_) => CardActivationScreen(cardId: pendingCardId),
+                ),
+              );
+            });
+          }
+
+          // Loan hand-off from the webchat `acn-mobile-handoff` widget. If the
+          // SSO fast-path in main.dart could not fire (e.g. the URL was missing
+          // customer_id, or the backend rejected the SSO validation), the user
+          // ends up here on LoginScreen — but pendingLoanDraftId was still
+          // captured by _parseActivationUri, so we can still land them on the
+          // review screen after they finish typing their id manually.
+          final pendingLoanDraftId = AppStartup.pendingLoanDraftId;
+          final pendingLoanHandoffToken = AppStartup.pendingLoanHandoffToken;
+          if (pendingLoanDraftId != null) {
+            AppStartup.pendingLoanDraftId = null;
+            AppStartup.pendingLoanHandoffToken = null;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              navigatorKey.currentState?.push(
+                MaterialPageRoute(
+                  builder: (_) => LoanReviewScreen(
+                    loanApplicationId: pendingLoanDraftId,
+                    handoffToken: pendingLoanHandoffToken,
+                  ),
                 ),
               );
             });
