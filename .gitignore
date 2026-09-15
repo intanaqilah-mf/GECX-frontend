@@ -5,7 +5,6 @@
 .env
 android/app/google-services.json
 # Backend
-/lib/backend/
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -23,3 +22,6 @@ web/firebase-messaging-sw.js
 
 # Node
 node_modules/
+
+# Excluded demo project
+ACN_Bank_Demo/

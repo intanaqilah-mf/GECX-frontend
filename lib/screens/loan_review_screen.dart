@@ -56,7 +56,32 @@ class _LoanReviewScreenState extends State<LoanReviewScreen> {
   Future<void> _confirm(LoanModel loan) async {
     setState(() => _submitting = true);
     try {
-      await LoansService.instance.confirmLoan(loan.loanApplicationId);
+      // Ensure the Firestore doc carries the signed-in customer_id — the
+      // deep-link snapshot doesn't populate it, and fetchLoansFor queries
+      // by `customer_id ==`. Without this the loan wouldn't appear on the
+      // Expenses tab's Active Financing list after confirming.
+      final cid = ChatOverlayController.instance.customerId ?? '';
+      final withOwner = loan.customerId.isNotEmpty
+          ? loan
+          : LoanModel(
+              loanApplicationId: loan.loanApplicationId,
+              loanKind: loan.loanKind,
+              status: loan.status,
+              verdict: loan.verdict,
+              isProvisional: loan.isProvisional,
+              monthlyPaymentCad: loan.monthlyPaymentCad,
+              principalCad: loan.principalCad,
+              tenureLabel: loan.tenureLabel,
+              interestRatePct: loan.interestRatePct,
+              customerId: cid,
+              productName: loan.productName,
+              productImageUrl: loan.productImageUrl,
+              payloadSnapshot: loan.payloadSnapshot,
+              createdAt: loan.createdAt,
+              updatedAt: loan.updatedAt,
+            );
+      await LoansService.instance
+          .confirmLoan(loan.loanApplicationId, loan: withOwner);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Loan activated. See it in Expenses.')),

@@ -30,6 +30,7 @@ dependencies:
   qr_flutter: ^4.1.0       # "My QR" screen — renders the payer-scannable code
   zxing2: ^0.2.3           # Pure-Dart QR decoder for gallery pick (web-safe)
   image: ^4.1.7            # Decode picked-image bytes for the zxing2 scanner
+  share_plus: ^10.0.0      # QR receipt Share button (Android / iOS / web)
 
 dev_dependencies:
   flutter_test:

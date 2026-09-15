@@ -173,6 +173,73 @@ class LoanModel {
   bool get isEpp => loanKind == 'epp';
   bool get isMortgage => loanKind == 'mortgage';
 
+  /// Total number of installments derived from the payload snapshot.
+  /// EPP uses `tenure_months`; mortgage uses `tenure_years * 12`. Falls
+  /// back to parsing digits out of [tenureLabel] so a doc missing the
+  /// nested numeric field still yields something usable.
+  int get tenureMonths {
+    if (isEpp) {
+      final v = (payloadSnapshot['epp'] is Map)
+          ? (payloadSnapshot['epp']['tenure_months'] as num?)?.toInt()
+          : null;
+      if (v != null && v > 0) return v;
+    } else if (isMortgage) {
+      final v = (payloadSnapshot['mortgage'] is Map)
+          ? (payloadSnapshot['mortgage']['tenure_years'] as num?)?.toInt()
+          : null;
+      if (v != null && v > 0) return v * 12;
+    }
+    final m = RegExp(r'(\d+)').firstMatch(tenureLabel);
+    return m == null ? 0 : (int.tryParse(m.group(1) ?? '0') ?? 0);
+  }
+
+  /// How many installments have been marked paid. Written by
+  /// [LoansService.payInstalment]. Absent → 0.
+  int get paidInstalments {
+    final top = payloadSnapshot['paid_instalments'];
+    if (top is num) return top.toInt();
+    return 0;
+  }
+
+  /// Interest total (order amount * rate). This mirrors the "Installment
+  /// Rate" row on the reference receipt — a single "total interest" number,
+  /// not per-instalment interest.
+  double get interestCad =>
+      double.parse((principalCad * interestRatePct / 100.0)
+          .toStringAsFixed(2));
+
+  /// Principal + interest — the "Total payable" row.
+  double get totalRepayableCad {
+    final v = (payloadSnapshot['epp'] is Map)
+        ? (payloadSnapshot['epp']['total_repayable_cad'] as num?)?.toDouble()
+        : null;
+    if (v != null && v > 0) return v;
+    return double.parse((principalCad + interestCad).toStringAsFixed(2));
+  }
+
+  /// Computed schedule — one row per installment, past or future. Uses
+  /// [createdAt] as the origin (first installment) and adds one month per
+  /// row. Marks the first [paidInstalments] as paid.
+  List<LoanInstalment> get schedule {
+    final start = createdAt ?? DateTime.now();
+    final n = tenureMonths;
+    final double amt = monthlyPaymentCad > 0
+        ? monthlyPaymentCad
+        : (n > 0 ? totalRepayableCad / n : 0.0);
+    final paid = paidInstalments.clamp(0, n);
+    return List.generate(n, (i) {
+      // Simple month math — clamp day-of-month to end of target month so
+      // Jan 31 → Feb 28 doesn't spill into March.
+      final due = DateTime(start.year, start.month + i, start.day);
+      return LoanInstalment(
+        index: i + 1,
+        dueDate: due,
+        amount: amt,
+        paid: i < paid,
+      );
+    });
+  }
+
   factory LoanModel.fromJson(Map<String, dynamic> json) {
     dynamic snapshot = json['payload_snapshot'];
     Map<String, dynamic> snapMap = const {};
@@ -188,6 +255,29 @@ class LoanModel {
     }
 
     // Pull product name/image from the EPP snapshot when available.
+    // CES's create_loan_application often writes a stub doc where only
+    // status / kind / customer_id live at the top and the real numbers
+    // (monthly, principal, rate, tenure_months) live inside the nested
+    // payload_snapshot map. Extract those as fallbacks so the review
+    // screen doesn't show CAD 0.00 when the top-level fields are absent.
+    Map<String, dynamic>? nested;
+    if (snapMap['epp'] is Map) {
+      nested = Map<String, dynamic>.from(snapMap['epp']);
+    } else if (snapMap['mortgage'] is Map) {
+      nested = Map<String, dynamic>.from(snapMap['mortgage']);
+    }
+
+    double pickNum(String topKey, List<String> nestedKeys) {
+      final t = (json[topKey] as num?)?.toDouble() ?? 0.0;
+      if (t > 0) return t;
+      if (nested == null) return 0.0;
+      for (final k in nestedKeys) {
+        final v = nested[k];
+        if (v is num && v > 0) return v.toDouble();
+      }
+      return 0.0;
+    }
+
     String? productName;
     String? productImageUrl;
     if (snapMap['epp'] is Map) {
@@ -196,16 +286,30 @@ class LoanModel {
       productImageUrl = epp['product_image_url'] as String?;
     }
 
+    // Tenure label — try top-level, else synthesize from nested tenure_months
+    // (EPP) or tenure_years (mortgage) so the "24 months" text populates.
+    String tenureLabel = (json['tenure_label'] ?? '') as String;
+    if (tenureLabel.isEmpty && nested != null) {
+      if (snapMap['epp'] is Map && nested['tenure_months'] is num) {
+        tenureLabel = '${(nested['tenure_months'] as num).toInt()} months';
+      } else if (snapMap['mortgage'] is Map && nested['tenure_years'] is num) {
+        tenureLabel = '${(nested['tenure_years'] as num).toInt()} years';
+      }
+    }
+
     return LoanModel(
       loanApplicationId: (json['loan_application_id'] ?? '') as String,
-      loanKind: ((json['loan_kind'] ?? '') as String).toLowerCase(),
+      loanKind: ((json['loan_kind'] ?? snapMap['loan_kind'] ?? '') as String)
+          .toLowerCase(),
       status: ((json['status'] ?? 'draft') as String).toLowerCase(),
       verdict: (json['verdict'] ?? '') as String,
       isProvisional: json['is_provisional'] == true,
-      monthlyPaymentCad: (json['monthly_payment_cad'] ?? 0).toDouble(),
-      principalCad: (json['principal_cad'] ?? 0).toDouble(),
-      tenureLabel: (json['tenure_label'] ?? '') as String,
-      interestRatePct: (json['interest_rate_pct'] ?? 0).toDouble(),
+      monthlyPaymentCad:
+          pickNum('monthly_payment_cad', const ['monthly_amount_cad', 'monthly_payment_cad']),
+      principalCad:
+          pickNum('principal_cad', const ['retail_price_cad', 'loan_principal_cad']),
+      tenureLabel: tenureLabel,
+      interestRatePct: pickNum('interest_rate_pct', const ['interest_rate_pct']),
       customerId: (json['customer_id'] ?? '') as String,
       productName: productName,
       productImageUrl: productImageUrl,
@@ -221,6 +325,20 @@ DateTime? _parseIso(dynamic value) {
     return DateTime.tryParse(value);
   }
   return null;
+}
+
+/// One row on the Pay-in-N schedule shown by LoanBillingDetailScreen.
+class LoanInstalment {
+  final int index;
+  final DateTime dueDate;
+  final double amount;
+  final bool paid;
+  const LoanInstalment({
+    required this.index,
+    required this.dueDate,
+    required this.amount,
+    required this.paid,
+  });
 }
 
 class ActivityModel {

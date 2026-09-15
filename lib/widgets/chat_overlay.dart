@@ -244,17 +244,27 @@ class _ChatOverlayState extends State<ChatOverlay> {
             type: MaterialType.transparency,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                // Wide screens (tablet / desktop / Flutter web): constrain to
-                // the same phone-shaped column AppShell uses so the chat sits
-                // inside the app, not out in the browser gutter.
+                // Wide screens (tablet / desktop / Flutter web).
+                //
+                // The minimised BUBBLE must anchor to the true viewport
+                // bottom-right, not the AppShell phone-column, otherwise on
+                // desktop it appears floating in the middle of the browser
+                // window (right edge of a 460-wide column = ~centre of a
+                // wide viewport).
+                //
+                // The EXPANDED panel keeps the phone-column constraint so
+                // it feels like part of the app, not the browser gutter.
                 if (constraints.maxWidth <= 520) return content;
-                return Center(
-                  child: SizedBox(
-                    width: 460, // matches AppShell's maxWidth
-                    height: constraints.maxHeight,
-                    child: content,
-                  ),
-                );
+                if (mode == ChatOverlayMode.expanded) {
+                  return Center(
+                    child: SizedBox(
+                      width: 460, // matches AppShell's maxWidth
+                      height: constraints.maxHeight,
+                      child: content,
+                    ),
+                  );
+                }
+                return content;
               },
             ),
           ),

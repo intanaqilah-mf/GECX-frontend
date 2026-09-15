@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../services/qr_payment_service.dart';
 import '../theme/app_colors.dart';
@@ -300,37 +301,53 @@ class QrReceiptScreen extends StatelessWidget {
   }
 
   Widget _bottomActions(BuildContext context) {
+    // Only Share here — the edit / search icons in the Maybank reference
+    // aren't wired to anything meaningful for the demo, and dead buttons
+    // feel worse than a clean single action.
     return Container(
       color: const Color(0xFFF0F1F3),
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          _CircleIconButton(icon: Icons.edit_outlined, onTap: () {}),
-          const Spacer(),
-          _CircleIconButton(
-            icon: Icons.search,
-            onTap: () {},
-            pillLeft: true,
-          ),
-          Container(
-            width: 1,
-            height: 32,
-            color: Colors.grey.shade400,
-          ),
           _CircleIconButton(
             icon: Icons.ios_share,
-            onTap: () {
-              // Share hook — real share sheet would go here. Kept as a
-              // no-op with a snackbar so the button doesn't feel broken.
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sharing coming soon')),
-              );
-            },
-            pillRight: true,
+            onTap: () => _share(context),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _share(BuildContext context) async {
+    final dateStr = DateFormat('d MMM yyyy, h:mm a').format(result.timestamp);
+    final amountStr = NumberFormat.currency(symbol: '', decimalDigits: 2)
+        .format(result.amount);
+
+    // Plain-text receipt summary — copy-pasteable and shows fine in any share
+    // target (WhatsApp, Mail, Notes, browser downloads on web).
+    final body = [
+      'ACN Bank — Scan & Pay Receipt',
+      '',
+      'Reference ID: ${result.referenceId}',
+      'Date: $dateStr',
+      'Recipient: ${result.recipientName}',
+      'ACN Bank ID: ${result.recipientCustomerId}',
+      if (result.recipientAccountId != null)
+        'Account: ${_maskAccount(result.recipientAccountId!)}',
+      'Amount: ${result.currency} $amountStr',
+      '',
+      'Status: Successful',
+    ].join('\n');
+
+    try {
+      await Share.share(body, subject: 'ACN Bank receipt ${result.referenceId}');
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open share sheet: $e')),
+      );
+    }
   }
 
   static String _maskAccount(String accountId) {

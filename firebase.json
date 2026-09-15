@@ -22,14 +22,6 @@
     ],
     "rewrites": [
       {
-        "source": "/customers/**",
-        "function": "api"
-      },
-      {
-        "source": "/cards/**",
-        "function": "api"
-      },
-      {
         "source": "**",
         "destination": "/index.html"
       }
