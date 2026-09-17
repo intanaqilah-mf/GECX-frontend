@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/banking_models.dart';
+import '../services/account_events.dart';
 import '../services/api_service.dart';
 import '../services/quick_actions.dart';
 import '../theme/app_colors.dart';
@@ -31,6 +32,23 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _home = _api.getHomeData(widget.customerId);
+    // Auto-refresh whenever any service reports a balance-changing write
+    // (QR pay, EPP / mortgage instalment). Without this the balance shown
+    // in the hero blob stays stale until pull-to-refresh, and users think
+    // their payment didn't go through.
+    AccountEvents.instance.balanceRevision.addListener(_onBalanceChanged);
+  }
+
+  @override
+  void dispose() {
+    AccountEvents.instance.balanceRevision.removeListener(_onBalanceChanged);
+    super.dispose();
+  }
+
+  void _onBalanceChanged() {
+    if (!mounted) return;
+    final f = _api.getHomeData(widget.customerId);
+    setState(() => _home = f);
   }
 
   Future<void> _refresh() async {

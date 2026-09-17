@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 import '../main.dart' show AppStartup;
 import '../models/banking_models.dart';
+import 'account_events.dart';
 
 /// Reads and mutates the customer's loan applications.
 ///
@@ -390,6 +391,8 @@ class LoansService {
           );
           await batch.commit();
           debited = true;
+          // Ping Home + Accounts so their cached balance refreshes.
+          AccountEvents.instance.notifyBalanceChanged();
           // ignore: avoid_print
           print('[LoansService] payInstalment debited $cid/$accountId '
               '$amount → new balance $newBalance (ref $ref)');

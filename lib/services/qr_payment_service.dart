@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import 'account_events.dart';
+
 /// Structured result of a successful QR payment. Passed to the receipt
 /// screen so the layout can render every row without extra fetches.
 class QrPaymentResult {
@@ -198,6 +200,10 @@ class QrPaymentService {
       // ignore: avoid_print
       print('[QrPayment] credit-side write failed (ref=$referenceId): $e');
     }
+
+    // Notify listeners (Home + Accounts screens) so they invalidate their
+    // cached HomeData snapshot and re-fetch the fresh balance.
+    AccountEvents.instance.notifyBalanceChanged();
 
     return QrPaymentResult(
       referenceId: referenceId,

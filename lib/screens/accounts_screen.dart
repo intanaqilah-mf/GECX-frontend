@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/banking_models.dart';
+import '../services/account_events.dart';
 import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 
@@ -32,6 +33,20 @@ class _AccountsScreenState extends State<AccountsScreen> {
   void initState() {
     super.initState();
     _home = _api.getHomeData(widget.customerId);
+    // Auto-refresh the card + balance when any service moves money on this
+    // customer's account (QR pay, EPP / mortgage instalment).
+    AccountEvents.instance.balanceRevision.addListener(_onBalanceChanged);
+  }
+
+  @override
+  void dispose() {
+    AccountEvents.instance.balanceRevision.removeListener(_onBalanceChanged);
+    super.dispose();
+  }
+
+  void _onBalanceChanged() {
+    if (!mounted) return;
+    setState(() => _home = _api.getHomeData(widget.customerId));
   }
 
   Future<void> _refresh() async {
